@@ -1,16 +1,16 @@
 const grid = [
-		['.', '.', '.', '.', '.', '.',],
-		['.', '.', '.', '.', '.', '.',],
-		['.', '.', '.', '.', '.', '.',],
-		['.', '.', '.', '.', '.', '.',],
-		['.', '.', '.', '.', '.', '.',],
-		['.', '1', '.', '.', '.', '.',],
-		['0', '2', '1', '.', '.', '.',],
-		['1', '2', '2', '.', '.', '.',],
-		['2', '3', '3', '.', '1', '.',],
-		['3', '4', '4', '.', '1', '.',],
-		['4', '5', '5', '1', '1', '.',],
-		['5', '5', '4', '3', '3', '.',],
+		['.', '.', '.', '.', '.', '.'],
+		['.', '.', '.', '.', '.', '.'],
+		['.', '.', '.', '.', '.', '.'],
+		['.', '.', '.', '.', '.', '.'],
+		['.', '.', '.', '.', '.', '.'],
+		['.', '1', '.', '.', '.', '.'],
+		['0', '2', '1', '.', '.', '.'],
+		['1', '2', '2', '.', '.', '.'],
+		['2', '3', '3', '.', '1', '.'],
+		['3', '4', '4', '1', '1', '.'],
+		['4', '5', '5', '1', '1', '.'],
+		['5', '5', '4', '3', '3', '.']
 	];
 const MAX_ROW = 11; // 0-indexed 12 rows
 const MAX_COL = 5; // 0-indexed 6 columns
@@ -31,21 +31,21 @@ console.log('score = ' + score);
 
 function scoreGrid(grid) {
 	let score = 0;
-	const checked = Array(MAX_ROW + 1).fill().map(_ => Array(MAX_COL + 1).fill(STATUS_UNCHECKED));
+	const checked = new Array(MAX_ROW + 1).fill().map(_ => new Array(MAX_COL + 1).fill(STATUS_UNCHECKED));
 
 	// each step
 	for (let rowIndex = MAX_ROW; rowIndex >= 0; rowIndex--) {
 		for (let colIndex = 0; colIndex <= MAX_COL; colIndex++) {
-            console.log('rowIndex = ' + rowIndex + ', colIndex = ' + colIndex);
-            console.log('checked[rowIndex][colIndex] = ' + checked[rowIndex][colIndex]);
-            if (rowIndex >= 10) {printGrid(checked);}
+            //console.log('rowIndex = ' + rowIndex + ', colIndex = ' + colIndex);
+            //console.log('checked[rowIndex][colIndex] = ' + checked[rowIndex][colIndex]);
+            //if (rowIndex >= 10) {printGrid(checked);}
 			if (!checked[rowIndex][colIndex]) {
 				let val = grid[rowIndex][colIndex];
-                console.log('val = ' + val);
+                //console.log('val = ' + val);
 				if (val !== '.' && val !== '0') {
                     checked[rowIndex][colIndex] = STATUS_CHECKED;
 					let count = 1 + countMatchingNeighbours(grid, rowIndex, colIndex, checked);
-                    if (rowIndex >= 10) {printGrid(checked);}
+                    //if (rowIndex >= 10) {printGrid(checked);}
 					if (count >= 4) {
 						score += (10 * count);
 						// mark matches for elimination
@@ -55,7 +55,7 @@ function scoreGrid(grid) {
 						// mark matches as done
 						markMatches(checked, false);
 					}
-                    if (rowIndex >= 10) {printGrid(checked);}
+                    //if (rowIndex >= 10) {printGrid(checked);}
 				}
 			}
 		}
@@ -115,11 +115,11 @@ function markMatches(checked, isGrouped) {
     checked.forEach((row, rowIndex) => {
 		row.forEach((cell, cellIndex) => {
 			if (cell === STATUS_CHECKED) {
-				checked[rowIndex][cellIndex] = (isGrouped) ? STATUS_GROUPED : STATUS_UNCHECKED 
-			};
+				checked[rowIndex][cellIndex] = (isGrouped) ? STATUS_GROUPED : STATUS_UNCHECKED;
+			}
 			if (cell === STATUS_CHECKED_UNMATCHED) {
-				checked[rowIndex][cellIndex] = STATUS_UNCHECKED 
-			};
+				checked[rowIndex][cellIndex] = STATUS_UNCHECKED;
+			}
 		});
 	});
 }
