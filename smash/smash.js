@@ -46,23 +46,23 @@ while (true) {
     let blocks = [];
     let grid = [];
 
-    for (var i = 0; i < 8; i++) {
+    for (let i = 0; i < 8; i++) {
         var inputs = readline().split(' ');
         var colorA = parseInt(inputs[0]); // color of the first block
         var colorB = parseInt(inputs[1]); // color of the attached block
         blocks.push([colorA, colorB]);
     }
     var score1 = parseInt(readline());
-    for (var i = 0; i < 12; i++) {
-        var row = readline();
+    for (let i = 0; i < 12; i++) {
+        const row = readline();
         grid.push(row.split(''));
     }
     var score2 = parseInt(readline());
     for (var i = 0; i < 12; i++) {
-        var row = readline(); // One line of the map ('.' = empty, '0' = skull block, '1' to '5' = colored block)
+        const row = readline(); // One line of the map ('.' = empty, '0' = skull block, '1' to '5' = colored block)
     }
     //printGrid(grid);
-    printErr(blocks)
+    //printErr(blocks);
 
     /*
      main algorithm
@@ -75,7 +75,7 @@ while (true) {
         scoreMap.set(column, calculateScoreForLine(column));
         columnHeights.push(getColumnSize(column));
     }
-    printErr(columnHeights);
+    //printErr(columnHeights);
 
     let highestScoringCombo = [-1, -1];
     let highestScore = 0;
@@ -88,7 +88,7 @@ while (true) {
             if ( isInvalidCombination(colIndex, rotationIndex, columnHeights) )
             {
                 // exclude this combo
-                printErr('combination not valid: ' + colIndex + ' ' + rotationIndex);
+                //printErr('combination not valid: ' + colIndex + ' ' + rotationIndex);
             }
             else {
                 // generate new grid
@@ -106,7 +106,7 @@ while (true) {
                     // no matches so score groups of 2 & 3
                     score = scoreGridNoMatches(tryGrid, scoreMap, false) + calculateColumnScore(columnIndexes);
                 }
-                printErr('scored ' + score + ' for ' + colIndex + ' ' + rotationIndex);
+                //printErr('scored ' + score + ' for ' + colIndex + ' ' + rotationIndex);
 
 
                 // compare with current highest score & replace if it is higher
@@ -175,7 +175,7 @@ function newGrid(grid, columnIndexes, colours) {
         //printErr('column ' + columnIndex + ' before = ' + column);
         // find top of column
         const topIndex = getTopIndex(column);
-        printErr('topIndex = ' + topIndex + ' for ' + column.join(' '));
+        //printErr('topIndex = ' + topIndex + ' for ' + column.join(' '));
         // add block to column
         gridCopy[topIndex][columnIndex] = colours[i].toString();
     });
@@ -244,17 +244,17 @@ function scoreGrid(grid) {
             }
         }
 
-        printGrid(grid);
-        printGrid(checked);
+        //printGrid(grid);
+        //printGrid(checked);
 
         clearMatches(grid, checked);
 
-        printGrid(grid);
-        printGrid(checked);
+        //printGrid(grid);
+        //printGrid(checked);
 
         totalScore += (10 * stepCount) * (step + calculateColourBonus(colourSet) + groupBonus);
 
-    } while (stepCount !== 0)
+    } while (stepCount !== 0);
 
     return totalScore;
 }
@@ -422,7 +422,7 @@ function calculateScoreForLine(line, log) {
             if (currentColour !== '.' && currentColour !== '0') {
                 score += scoreCard.get(streak);
                 if (log) {
-                    printErr('streak of ' + streak + ' ' + currentColour + 's ended, score = ' + score);
+                    //printErr('streak of ' + streak + ' ' + currentColour + 's ended, score = ' + score);
                 }
             }
             // reset
@@ -432,7 +432,7 @@ function calculateScoreForLine(line, log) {
     });
 
     if (log) {
-        printErr('scored ' + score + ' for ' + line.join(' '));
+        //printErr('scored ' + score + ' for ' + line.join(' '));
     }
 
     return score;
@@ -447,112 +447,6 @@ function getColumnSize(column) {
     return MAX_ROW - column.lastIndexOf('.');
 }
 
-function getHeight(grid, colIndex) {
-    let height = 0;
-    for (let rowIndex = MAX_ROW; rowIndex >= 0; rowIndex--) {
-        if (grid[rowIndex][colIndex] !== '.') {
-            height++;
-        }
-    }
-    return height;
-}
-
-function isColumnEmpty (grid, colIndex) {
-    const empty = grid[MAX_ROW][colIndex] === '.';
-    //printErr('empty = ' + empty);
-    return empty;
-}
-
-function isColumnFull (grid, colIndex) {
-    const full = getHeight(grid, colIndex) > MAX_HEIGHT;
-    //printErr('full = ' + full);
-    return full;
-}
-
-function getTopColour(grid, colIndex) {
-    const column = getColumn(grid, colIndex);
-    //printErr('column = ' + column);
-    const top = column.lastIndexOf('.');
-    let topColour;
-    if (top === MAX_ROW) {
-        topColour = -1;
-    }
-    else {
-        topColour = column[top + 1];
-    }
-    //printErr('topColour = ' + topColour);
-    return parseInt(topColour);
-}
-
-function getTopColourDepth(grid, colIndex) {
-    //printErr('colIndex = ' + colIndex);
-    const column = getColumn(grid, colIndex);
-    //printErr('column = ' + column);
-    const topColour = getTopColour(grid, colIndex);
-    //printErr('topColour = ' + topColour);
-    const topColourIndex = column.indexOf(topColour.toString());
-    //printErr('topColourIndex = ' + topColourIndex);
-    let depth = 1;
-    let offset = 1;
-    while (parseInt(column[topColourIndex + offset]) === topColour && topColourIndex <= MAX_ROW) {
-        depth++;
-        offset++;
-    }
-    //printErr('topColourDepth = ' + depth);
-    return depth;
-}
-
-function hasMatchingColumn(grid, colIndex, colour) {
-    //printErr('colIndex = ' + colIndex);
-    //printErr('colour = ' + colour);
-    // get next position on column
-    const column = getColumn(grid, colIndex);
-    //printErr('column = ' + column);
-    const top = column.lastIndexOf('.');
-    //printErr('top = ' + top);
-    const columnHeight = getHeight(grid, colIndex);
-
-    // compare prev/next cols at that pos
-    const prevColumn = (colIndex === MIN_COLUMN) ? null : getColumn(grid, colIndex - 1);
-    const nextColumn = (colIndex === MAX_COLUMN) ? null : getColumn(grid, colIndex + 1);
-    //printErr('prevColumn = ' + prevColumn);
-    //printErr('nextColumn = ' + nextColumn);
-    const prevHeight = (prevColumn) ? getHeight(grid, colIndex - 1) : 0;
-    const nextHeight = (nextColumn) ? getHeight(grid, colIndex + 1) : 0;
-    const MIN_MATCH_HEIGHT = 6;
-
-    let hasMatch = false;
-    if (prevColumn
-        && prevHeight > MIN_MATCH_HEIGHT
-        && (prevHeight - columnHeight > 2)
-        && (parseInt(prevColumn[top]) === colour || parseInt(prevColumn[top - 1]) === colour))
-    {
-        hasMatch = true;
-    }
-    if (nextColumn
-        && nextHeight > MIN_MATCH_HEIGHT
-        && (nextHeight - columnHeight > 2)
-        && (parseInt(nextColumn[top]) === colour || parseInt(nextColumn[top - 1]) === colour))
-    {
-        hasMatch = true;
-    }
-    //printErr('hasMatch = ' + hasMatch);
-    //printErr('-----------------------');
-    return hasMatch;
-}
-
-function getColourCount(grid, colIndex) {
-    const column = getColumn(grid, colIndex);
-    //printErr('column = ' + column);
-    const colours = column.filter(i => i !== '.');
-    const uniqueColours = new Set(colours);
-    //printErr('uniqueColours = ' + uniqueColours.entries().join(','));
-    //uniqueColours.forEach(function(value) {
-    //  printErr('uniqueColour = ' + value);
-    //});
-    //printErr('-----------------------');
-    return uniqueColours.size;
-}
 
 function getColumn(grid, colIndex) {
     return grid.map(row => row[colIndex]);
