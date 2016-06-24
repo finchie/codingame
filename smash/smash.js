@@ -17,6 +17,27 @@ class Combo {
         this.colIndex = colIndex;
         this.rotationIndex = rotationIndex;
     }
+
+    getColumnIndexes() {
+        if (this.rotationIndex === VERTICAL || this.rotationIndex === VERTICAL_REVERSE) {
+            return [this.colIndex, this.colIndex];
+        }
+        else if (this.rotationIndex === HORIZONTAL) {
+            return [this.colIndex, this.colIndex + 1];
+        }
+        else if (this.rotationIndex === HORIZONTAL_REVERSE) {
+            return [this.colIndex - 1, this.colIndex];
+        }
+    }
+
+    getBlocks(blocks) {
+        if (this.rotationIndex === VERTICAL || this.rotationIndex === HORIZONTAL) {
+            return blocks;
+        }
+        else if (this.rotationIndex === VERTICAL_REVERSE || this.rotationIndex === HORIZONTAL_REVERSE) {
+            return [blocks[1], blocks[0]];
+        }
+    }
 }
 
 const combos = getCombos();
@@ -99,12 +120,10 @@ while (true) {
             //printErr('combination not valid: ' + combo.colIndex + ' ' + combo.rotationIndex);
         }
         else {
+            //printErr('(colIndex, rotation) = '  + '(' + combo.colIndex + ', ' + combo.rotationIndex + ')');
+
             // generate new grid
-            const columnIndexes = getColumnIndexes(combo);
-            //printErr('(colIndex, rotation) = '  + '(' + colIndex + ', '+ rotation + ')');
-            const colours = getBlocks(combo.rotationIndex, blocks[0]);
-            //printErr('colours = ' + colours);
-            const tryGrid = newGrid(grid, columnIndexes, colours);
+            const tryGrid = newGrid(grid, combo, blocks[0]);
 
             //printGrid(tryGrid);
 
@@ -116,7 +135,7 @@ while (true) {
 
             if (score === 0) {
                 // no matches so score groups of 2 & 3
-                score = scoreGridNoMatches(tryGrid, scoreMap, false) + calculateColumnScore(columnIndexes);
+                score = scoreGridNoMatches(tryGrid, scoreMap, false) + calculateColumnScore(combo.getColumnIndexes());
             }
             //printErr('scored ' + score + ' for ' + colIndex + ' ' + rotationIndex);
 
@@ -177,32 +196,17 @@ function isInvalidCombination(combo, columnHeights) {
         verticalColumnFull;
 }
 
-function getColumnIndexes(combo) {
-    if (combo.rotationIndex === VERTICAL || combo.rotationIndex === VERTICAL_REVERSE) {
-        return [combo.colIndex, combo.colIndex];
-    }
-    else if (combo.rotationIndex === HORIZONTAL) {
-        return [combo.colIndex, combo.colIndex + 1];
-    }
-    else if (combo.rotationIndex === HORIZONTAL_REVERSE) {
-        return [combo.colIndex - 1, combo.colIndex];
-    }
-}
-
-function getBlocks(rotation, blocks) {
-    if (rotation === VERTICAL || rotation === HORIZONTAL) {
-        return blocks;
-    }
-    else if (rotation === VERTICAL_REVERSE || rotation === HORIZONTAL_REVERSE) {
-        return [blocks[1], blocks[0]];
-    }
-}
-
-function newGrid(grid, columnIndexes, colours) {
+function newGrid(grid, combo, blocks) {
 
     //printGrid(grid);
     // copy current grid
     const gridCopy = grid.map(a => a.slice());
+
+    const columnIndexes = combo.getColumnIndexes();
+    //printErr('columnIndexes = ' + columnIndexes);
+
+    const colours = combo.getBlocks(blocks);
+    //printErr('colours = ' + colours);
 
     // for each column, add new colour(s) at top of column
     columnIndexes.forEach((columnIndex, i) => {
