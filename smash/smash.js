@@ -12,6 +12,9 @@ const VERTICAL_REVERSE = 3;
 const HORIZONTAL = 0;
 const HORIZONTAL_REVERSE = 2;
 
+const MAX_BLOCK = 7; // 0-indexed 8th block
+const MAX_DEPTH = 2; // 0-indexed depth of 3
+
 class Combo {
     constructor(colIndex, rotationIndex) {
         this.colIndex = colIndex;
@@ -37,6 +40,10 @@ class Combo {
         else if (this.rotationIndex === VERTICAL_REVERSE || this.rotationIndex === HORIZONTAL_REVERSE) {
             return [blocks[1], blocks[0]];
         }
+    }
+
+    toString() {
+        return this.colIndex + ' ' + this.rotationIndex;
     }
 }
 
@@ -111,120 +118,47 @@ while (true) {
     // let highestScore2 = 0;
     let runningScore = 0;
 
-    // exclude invalid combinations for this grid
-    let columnHeights1 = getColumnHeights(grid);
-    //printErr('columnHeights = ' + columnHeights);
-    let validCombos = combos.filter(c => !isInvalidCombination(c, columnHeights1));
-    //let comboScores = new Array(validCombos.length).fill(0).map(_ => new Array(validCombos.length));
+    calcRecursiveScore(grid, blocks, 0, 0, new Array());
 
-    // for each possible combination (colIndex, rotation)
-    validCombos.forEach((combo1, index1) => {
-
-        //printErr('(colIndex, rotation) = '  + '(' + combo1.colIndex + ', ' + combo1.rotationIndex + ')');
-
-        // generate new grid
-        const tryGrid = newGrid(grid, combo1, blocks[0]);
-        //printGrid(tryGrid);
-
-        // score grid
-        let comboScore1 = scoreGrid(tryGrid); //clear matching blocks and repeat etc
-
-        // if (comboScore1 === 0) {
-        //     // no matches so score groups of 2 & 3
-        //     comboScore1 = scoreGridNoMatches(tryGrid, scoreMap, false);
-        // }
-        if (comboScore1 === 0) {
-            // no matches so score columns only
-            comboScore1 = calculateColumnScore(combo1.getColumnIndexes());
-        }
-        if (rounds === debugRound) {
-            printErr('score = ' + comboScore1 + ' for combo: ' + combo1.colIndex + ' ' + combo1.rotationIndex);
-        }
+    function calcRecursiveScore(gridX, blocks, blockIndex, cumulativeScore, comboChain) {
 
         // exclude invalid combinations for this grid
-        let columnHeights2 = getColumnHeights(tryGrid);
-        //printErr('.columnHeights = ' + columnHeights2);
-        let validCombos2 = combos.filter(c => !isInvalidCombination(c, columnHeights2));
+        let columnHeights = getColumnHeights(gridX);
+        //printErr('.columnHeights = ' + columnHeights);
+
+        let validCombos = combos.filter(c => !isInvalidCombination(c, columnHeights));
 
         // for each possible combination (colIndex, rotation)
-        validCombos2.forEach((combo2, index2) => {
+        validCombos.forEach((combo, index) => {
 
-            //printErr('.(colIndex, rotation) = '  + '(' + combo2.colIndex + ', ' + combo2.rotationIndex + ')');
+            //printErr('combo = ' + combo);
 
             // generate new grid
-            const tryGrid2 = newGrid(tryGrid, combo2, blocks[1]);
-            //printGrid(tryGrid2);
+            const tryGrid = newGrid(gridX, combo, blocks[blockIndex]);
+            //printGrid(tryGrid);
 
             // score grid
-            let comboScore2 = scoreGrid(tryGrid2, rounds === debugRound); //clear matching blocks and repeat etc
-
-            // if (comboScore2 === 0) {
-            //     // no matches so score groups of 2 & 3
-            //     comboScore2 = scoreGridNoMatches(tryGrid2, scoreMap, false);
-            // }
-            if (comboScore2 === 0) {
-                // no matches so score columns only
-                comboScore2 = calculateColumnScore(combo2.getColumnIndexes());
-            }
+            let comboScore = calculateColumnScore(combo.getColumnIndexes()); //scoreGrid(tryGrid); // clear matching blocks and repeat etc
             if (rounds === debugRound) {
-                printErr('score = ' + comboScore2 + ' for combo: ' + combo2.colIndex + ' ' + combo2.rotationIndex);
+                printErr('score = ' + comboScore + ' for combo: ' + combo.colIndex + ' ' + combo.rotationIndex);
             }
 
-
-
-            // exclude invalid combinations for this grid
-            let columnHeights3 = getColumnHeights(tryGrid2);
-            //printErr('.columnHeights = ' + columnHeights3);
-            let validCombos3 = combos.filter(c => !isInvalidCombination(c, columnHeights3));
-
-            // for each possible combination (colIndex, rotation)
-            validCombos3.forEach((combo3, index3) => {
-
-                //printErr('.(colIndex, rotation) = '  + '(' + combo3.colIndex + ', ' + combo3.rotationIndex + ')');
-
-                // generate new grid
-                const tryGrid3 = newGrid(tryGrid2, combo3, blocks[2]);
-                //printGrid(tryGrid3);
-
-                // score grid
-                let comboScore3 = scoreGrid(tryGrid3, rounds === debugRound); //clear matching blocks and repeat etc
-
-                // if (comboScore3 === 0) {
-                //     // no matches so score groups of 2 & 3
-                //     comboScore3 = scoreGridNoMatches(tryGrid3, scoreMap, false);
-                // }
-                if (comboScore3 === 0) {
-                    // no matches so score columns only
-                    comboScore3 = calculateColumnScore(combo3.getColumnIndexes());
-                }
-                if (rounds === debugRound) {
-                    printErr('score = ' + comboScore3 + ' for combo: ' + combo3.colIndex + ' ' + combo3.rotationIndex);
-                }
-
-                //comboScores[index1][index2][index3] = comboScore1 + comboScore2 + comboScore3;
-
+            if (blockIndex === MAX_DEPTH) {
                 // compare with current highest score & replace if it is higher
-                if (comboScore1 + comboScore2 + comboScore3 > highestScore) {
-                    highestScore = comboScore1 + comboScore2 + comboScore3;
-                    highestScoringCombo = combo1;
+                if (cumulativeScore + comboScore > highestScore) {
+                    //printErr(comboChain.join(', '));
+                    printErr('high score of ' + highestScore + ' replaced by ' + (cumulativeScore + comboScore));
+                    highestScore = cumulativeScore + comboScore;
+                    highestScoringCombo = comboChain[0];
                 }
-            });
-
-            // // comboScores[index1][index2] = comboScore1 + comboScore2;
-            //
-            // // compare with current highest score & replace if it is higher
-            // if (comboScore1 + comboScore2 > highestScore) {
-            //     highestScore = comboScore1 + comboScore2;
-            //     highestScoringCombo = combo1;
-            // }
+            }
+            else {
+                comboChain.push(combo);
+                calcRecursiveScore(tryGrid, blocks, blockIndex + 1, cumulativeScore + comboScore, comboChain);
+            }
         });
+    }
 
-        // // compare with current highest score & replace if it is higher
-        // if (comboScore + highestScore2 > highestScore) {
-        //     highestScore = comboScore + highestScore2;
-        //     highestScoringCombo = combo;
-        // }
-    });
 
 
     // Write an action using print()
@@ -232,6 +166,8 @@ while (true) {
 
     print(highestScoringCombo.colIndex + ' ' + highestScoringCombo.rotationIndex); // "x": the column in which to drop your blocks
 }
+
+
 
 function getColumnHeights(grid) {
     const columnHeights = [];
@@ -317,89 +253,7 @@ function getTopIndex(column) {
 
 
 function scoreGrid(grid) {
-    let totalScore = 0;
-    let stepCount = 0;
-    let step = 0;
-    let groupBonus = 0;
-    const colourSet = new Set();
-
-    // each step
-    do {
-        step++;
-        stepCount = 0;
-        colourSet.clear();
-        groupBonus = 0;
-
-        const checked = new Array(MAX_ROW + 1).fill(0).map(_ => new Array(MAX_COLUMN + 1).fill(STATUS_UNCHECKED));
-
-        for (let rowIndex = MAX_ROW; rowIndex >= 0; rowIndex--) {
-            for (let colIndex = 0; colIndex <= MAX_COLUMN; colIndex++) {
-
-                //console.log('rowIndex = ' + rowIndex + ', colIndex = ' + colIndex);
-                //console.log('checked[rowIndex][colIndex] = ' + checked[rowIndex][colIndex]);
-                //if (rowIndex >= 10) {printGrid(checked);}
-                if (!checked[rowIndex][colIndex]) {
-
-                    let val = grid[rowIndex][colIndex];
-                    //console.log('val = ' + val);
-                    if (val !== '.' && val !== '0') {
-
-                        checked[rowIndex][colIndex] = STATUS_CHECKED_MATCHED;
-                        let count = 1 + countMatchingNeighbours(grid, rowIndex, colIndex, checked);
-                        //if (rowIndex >= 10) {printGrid(checked);}
-
-                        if (count >= 4) {
-                            stepCount += count;
-                            colourSet.add(val);
-                            if (count >= 11) {
-                                groupBonus += 8;
-                            }
-                            else if (count >= 5) {
-                                groupBonus += (count - 4)
-                            }
-
-                            // mark matches for elimination
-                            markMatches(checked, true);
-                        }
-                        else {
-                            // mark matches as done
-                            markMatches(checked, false);
-                        }
-                        //if (rowIndex >= 10) {printGrid(checked);}
-                    }
-                }
-            }
-        }
-
-        if (rounds === debugRound) {
-            // printGrid(grid);
-            // printGrid(checked);
-        }
-
-        clearMatches(grid, checked);
-
-        let stepScore = (10 * stepCount) * (calculateChainPower(step) + calculateColourBonus(colourSet) + groupBonus);
-        totalScore += stepScore;
-
-        if (rounds === debugRound) {
-            // printGrid(grid);
-            // printGrid(checked);
-            // printErr('step = ' + step);
-            // printErr('stepCount = ' + stepCount);
-            // printErr('chainPower = ' + calculateChainPower(step));
-            // printErr('colourBonus = ' + calculateColourBonus(colourSet));
-            // printErr('groupBonus = ' + groupBonus);
-            // printErr('stepScore = ' + stepScore);
-            // printErr('totalScore = ' + totalScore);
-        }
-
-    } while (stepCount !== 0);
-
-    if (rounds === debugRound) {
-        printErr('totalScore = ' + totalScore)
-    }
-
-    return totalScore;
+    return Math.random() * 100;
 }
 
 function countMatchingNeighbours(grid, rowIndex, colIndex, checked) {
