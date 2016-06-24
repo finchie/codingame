@@ -45,8 +45,6 @@ colScoreCard.set(3, 2);
 colScoreCard.set(4, 1);
 colScoreCard.set(5, 0);
 
-let column = MIN_COLUMN;
-let rotation = 0;
 let rounds = 0;
 let debugRound = -1;
 
@@ -88,7 +86,7 @@ while (true) {
     }
     //printErr('columnHeights = ' + columnHeights);
 
-    let highestScoringCombo = new Combo(0, 0);
+    let highestScoringCombo = new Combo(MIN_COLUMN, HORIZONTAL);
     let highestScore = 0;
 
     // for each possible combination (colIndex, rotation)
@@ -131,14 +129,11 @@ while (true) {
         }
     });
 
-    column = highestScoringCombo.colIndex;
-    rotation = highestScoringCombo.rotationIndex;
-
 
     // Write an action using print()
     // To debug: printErr('Debug messages...');
 
-    print(column + ' ' + rotation); // "x": the column in which to drop your blocks
+    print(highestScoringCombo.colIndex + ' ' + highestScoringCombo.rotationIndex); // "x": the column in which to drop your blocks
 }
 
 function getCombos() {
