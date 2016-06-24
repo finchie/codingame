@@ -12,6 +12,15 @@ const VERTICAL_REVERSE = 3;
 const HORIZONTAL = 0;
 const HORIZONTAL_REVERSE = 2;
 
+class Combo {
+    constructor(colIndex, rotationIndex) {
+        this.colIndex = colIndex;
+        this.rotationIndex = rotationIndex;
+    }
+}
+
+const combos = getCombos();
+
 const STATUS_GROUPED = 4;
 const STATUS_SKULL = 3;
 const STATUS_CHECKED_MATCHED = 2;
@@ -39,10 +48,12 @@ colScoreCard.set(5, 0);
 let column = MIN_COLUMN;
 let rotation = 0;
 let rounds = 0;
+let debugRound = -1;
 
 // game loop
 while (true) {
-    rounds++;
+    rounds += 2;
+    printErr('rounds = ' + rounds);
     let blocks = [];
     let grid = [];
 
@@ -75,51 +86,53 @@ while (true) {
         scoreMap.set(column, calculateScoreForLine(column));
         columnHeights.push(getColumnSize(column));
     }
-    //printErr(columnHeights);
+    //printErr('columnHeights = ' + columnHeights);
 
-    let highestScoringCombo = [-1, -1];
+    let highestScoringCombo = new Combo(0, 0);
     let highestScore = 0;
 
     // for each possible combination (colIndex, rotation)
-    [0, 1, 2, 3, 4, 5].forEach(colIndex => {
-        [0, 1, 2, 3].forEach(rotationIndex => {
+    combos.forEach(combo => {
 
-            // exclude invalid combinations
-            if ( isInvalidCombination(colIndex, rotationIndex, columnHeights) )
-            {
-                // exclude this combo
-                //printErr('combination not valid: ' + colIndex + ' ' + rotationIndex);
+        // exclude invalid combinations
+        if ( isInvalidCombination(combo, columnHeights) )
+        {
+            // exclude this combo
+            //printErr('combination not valid: ' + combo.colIndex + ' ' + combo.rotationIndex);
+        }
+        else {
+            // generate new grid
+            const columnIndexes = getColumnIndexes(combo);
+            //printErr('(colIndex, rotation) = '  + '(' + colIndex + ', '+ rotation + ')');
+            const colours = getBlocks(combo.rotationIndex, blocks[0]);
+            //printErr('colours = ' + colours);
+            const tryGrid = newGrid(grid, columnIndexes, colours);
+
+            //printGrid(tryGrid);
+
+            // score grid
+            let score = scoreGrid(tryGrid, rounds === debugRound); //clear matching blocks and repeat etc
+            if (rounds === debugRound) {
+                printErr('score = ' + score + ' for combo: ' + combo.colIndex + ' ' + combo.rotationIndex);
             }
-            else {
-                // generate new grid
-                const columnIndexes = getColumnIndexes(colIndex, rotationIndex);
-                //printErr('(colIndex, rotation) = '  + '(' + colIndex + ', '+ rotation + ')');
-                const colours = getBlocks(rotationIndex, blocks[0]);
-                //printErr('colours = ' + colours);
-                const tryGrid = newGrid(grid, columnIndexes, colours);
 
-                //printGrid(tryGrid);
-
-                // score grid
-                let score = scoreGrid(tryGrid); //clear matching blocks and repeat etc.
-                if (score === 0) {
-                    // no matches so score groups of 2 & 3
-                    score = scoreGridNoMatches(tryGrid, scoreMap, false) + calculateColumnScore(columnIndexes);
-                }
-                //printErr('scored ' + score + ' for ' + colIndex + ' ' + rotationIndex);
-
-
-                // compare with current highest score & replace if it is higher
-                if (score > highestScore) {
-                    highestScore = score;
-                    highestScoringCombo = [colIndex, rotationIndex];
-                }
+            if (score === 0) {
+                // no matches so score groups of 2 & 3
+                score = scoreGridNoMatches(tryGrid, scoreMap, false) + calculateColumnScore(columnIndexes);
             }
-        });
+            //printErr('scored ' + score + ' for ' + colIndex + ' ' + rotationIndex);
+
+
+            // compare with current highest score & replace if it is higher
+            if (score > highestScore) {
+                highestScore = score;
+                highestScoringCombo = combo;
+            }
+        }
     });
 
-    column = highestScoringCombo[0];
-    rotation = highestScoringCombo[1];
+    column = highestScoringCombo.colIndex;
+    rotation = highestScoringCombo.rotationIndex;
 
 
     // Write an action using print()
@@ -128,29 +141,56 @@ while (true) {
     print(column + ' ' + rotation); // "x": the column in which to drop your blocks
 }
 
-function isInvalidCombination(colIndex, rotation, columnHeights) {
-    return  (colIndex === MIN_COLUMN && rotation === HORIZONTAL_REVERSE)
-        ||
-        (colIndex === MAX_COLUMN && rotation === HORIZONTAL)
-        ||
-        columnHeights[colIndex] > MAX_HEIGHT
-        ||
-        (rotation === HORIZONTAL && columnHeights[colIndex + 1] > MAX_HEIGHT)
-        ||
-        (rotation === HORIZONTAL_REVERSE && columnHeights[colIndex - 1] > MAX_HEIGHT)
-        ||
-        ((rotation === VERTICAL || rotation === VERTICAL_REVERSE) && columnHeights[colIndex] > MAX_HEIGHT - 1)
+function getCombos() {
+    let combos = [];
+
+    [0, 1, 2, 3, 4, 5].forEach(colIndex => {
+        [0, 1, 2, 3].forEach(rotationIndex => {
+            if ( !(colIndex === MIN_COLUMN && rotationIndex === HORIZONTAL_REVERSE)
+                && !(colIndex === MAX_COLUMN && rotationIndex === HORIZONTAL) ) {
+                combos.push(new Combo(colIndex, rotationIndex));
+            }
+
+        })
+    });
+
+    return combos;
 }
 
-function getColumnIndexes(colIndex, rotation) {
-    if (rotation === VERTICAL || rotation === VERTICAL_REVERSE) {
-        return [colIndex, colIndex];
+function isInvalidCombination(combo, columnHeights) {
+    //printErr('combo.colIndex = ' + combo.colIndex);
+    //printErr('combo.rotationIndex = ' + combo.rotationIndex);
+    //printErr('columnHeights[combo.colIndex] = ' + columnHeights[combo.colIndex]);
+    //printErr('columnHeights[combo.colIndex + 1] = ' + columnHeights[combo.colIndex + 1]);
+    //printErr('columnHeights[combo.colIndex - 1] = ' + columnHeights[combo.colIndex - 1]);
+
+    const primaryColumnFull = columnHeights[combo.colIndex] > MAX_HEIGHT;
+    const horizontalNextColFull = (combo.rotationIndex === HORIZONTAL && columnHeights[combo.colIndex + 1] > MAX_HEIGHT);
+    const horizontalPrevColFull = (combo.rotationIndex === HORIZONTAL_REVERSE && columnHeights[combo.colIndex - 1] > MAX_HEIGHT);
+    const verticalColumnFull = ((combo.rotationIndex === VERTICAL || combo.rotationIndex === VERTICAL_REVERSE) && columnHeights[combo.colIndex] > MAX_HEIGHT - 1);
+    //printErr('primaryColumnFull = ' + primaryColumnFull);
+    //printErr('horizontalNextColFull = ' + horizontalNextColFull);
+    //printErr('horizontalPrevColFull = ' + horizontalPrevColFull);
+    //printErr('verticalColumnFull = ' + verticalColumnFull);
+
+    return  primaryColumnFull
+        ||
+        horizontalNextColFull
+        ||
+        horizontalPrevColFull
+        ||
+        verticalColumnFull;
+}
+
+function getColumnIndexes(combo) {
+    if (combo.rotationIndex === VERTICAL || combo.rotationIndex === VERTICAL_REVERSE) {
+        return [combo.colIndex, combo.colIndex];
     }
-    else if (rotation === HORIZONTAL) {
-        return [colIndex, colIndex + 1];
+    else if (combo.rotationIndex === HORIZONTAL) {
+        return [combo.colIndex, combo.colIndex + 1];
     }
-    else if (rotation === HORIZONTAL_REVERSE) {
-        return [colIndex - 1, colIndex];
+    else if (combo.rotationIndex === HORIZONTAL_REVERSE) {
+        return [combo.colIndex - 1, combo.colIndex];
     }
 }
 
@@ -165,6 +205,7 @@ function getBlocks(rotation, blocks) {
 
 function newGrid(grid, columnIndexes, colours) {
 
+    //printGrid(grid);
     // copy current grid
     const gridCopy = grid.map(a => a.slice());
 
@@ -189,10 +230,10 @@ function getTopIndex(column) {
 
 
 
-function scoreGrid(grid) {
+function scoreGrid(grid, log) {
     let totalScore = 0;
     let stepCount = 0;
-    let step = -1;
+    let step = 0;
     let groupBonus = 0;
     const colourSet = new Set();
 
@@ -244,17 +285,33 @@ function scoreGrid(grid) {
             }
         }
 
-        //printGrid(grid);
-        //printGrid(checked);
+        if (log) {
+            printGrid(grid);
+            printGrid(checked);
+        }
 
         clearMatches(grid, checked);
 
-        //printGrid(grid);
-        //printGrid(checked);
+        let stepScore = (10 * stepCount) * (calculateChainPower(step) + calculateColourBonus(colourSet) + groupBonus);
+        totalScore += stepScore;
 
-        totalScore += (10 * stepCount) * (step + calculateColourBonus(colourSet) + groupBonus);
+        if (log) {
+            printGrid(grid);
+            printGrid(checked);
+            printErr('step = ' + step);
+            printErr('stepCount = ' + stepCount);
+            printErr('chainPower = ' + calculateChainPower(step));
+            printErr('colourBonus = ' + calculateColourBonus(colourSet));
+            printErr('groupBonus = ' + groupBonus);
+            printErr('stepScore = ' + stepScore);
+            printErr('totalScore = ' + totalScore);
+        }
 
     } while (stepCount !== 0);
+
+    if (log) {
+        printErr('totalScore = ' + totalScore)
+    }
 
     return totalScore;
 }
@@ -365,6 +422,15 @@ function calculateColourBonus(colourSet) {
     }
     else {
         return Math.pow(2, colourSet.size -1);
+    }
+}
+
+function calculateChainPower(step) {
+    if (step === 1) {
+        return 1;
+    }
+    else {
+        return (step - 1) * 8;
     }
 }
 
