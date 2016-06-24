@@ -110,41 +110,33 @@ while (true) {
     let highestScoringCombo = new Combo(MIN_COLUMN, HORIZONTAL);
     let highestScore = 0;
 
+    // exclude invalid combinations
+    let validCombos = combos.filter(c => !isInvalidCombination(c, columnHeights));
+
     // for each possible combination (colIndex, rotation)
-    combos.forEach(combo => {
+    validCombos.forEach(combo => {
 
-        // exclude invalid combinations
-        if ( isInvalidCombination(combo, columnHeights) )
-        {
-            // exclude this combo
-            //printErr('combination not valid: ' + combo.colIndex + ' ' + combo.rotationIndex);
+        //printErr('(colIndex, rotation) = '  + '(' + combo.colIndex + ', ' + combo.rotationIndex + ')');
+
+        // generate new grid
+        const tryGrid = newGrid(grid, combo, blocks[0]);
+        //printGrid(tryGrid);
+
+        // score grid
+        let score = scoreGrid(tryGrid, rounds === debugRound); //clear matching blocks and repeat etc
+        if (rounds === debugRound) {
+            printErr('score = ' + score + ' for combo: ' + combo.colIndex + ' ' + combo.rotationIndex);
         }
-        else {
-            //printErr('(colIndex, rotation) = '  + '(' + combo.colIndex + ', ' + combo.rotationIndex + ')');
 
-            // generate new grid
-            const tryGrid = newGrid(grid, combo, blocks[0]);
+        if (score === 0) {
+            // no matches so score groups of 2 & 3
+            score = scoreGridNoMatches(tryGrid, scoreMap, false) + calculateColumnScore(combo.getColumnIndexes());
+        }
 
-            //printGrid(tryGrid);
-
-            // score grid
-            let score = scoreGrid(tryGrid, rounds === debugRound); //clear matching blocks and repeat etc
-            if (rounds === debugRound) {
-                printErr('score = ' + score + ' for combo: ' + combo.colIndex + ' ' + combo.rotationIndex);
-            }
-
-            if (score === 0) {
-                // no matches so score groups of 2 & 3
-                score = scoreGridNoMatches(tryGrid, scoreMap, false) + calculateColumnScore(combo.getColumnIndexes());
-            }
-            //printErr('scored ' + score + ' for ' + colIndex + ' ' + rotationIndex);
-
-
-            // compare with current highest score & replace if it is higher
-            if (score > highestScore) {
-                highestScore = score;
-                highestScoringCombo = combo;
-            }
+        // compare with current highest score & replace if it is higher
+        if (score > highestScore) {
+            highestScore = score;
+            highestScoringCombo = combo;
         }
     });
 
