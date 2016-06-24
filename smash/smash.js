@@ -127,7 +127,7 @@ while (true) {
         //printGrid(tryGrid);
 
         // score grid
-        let comboScore1 = scoreGrid(tryGrid, rounds === debugRound); //clear matching blocks and repeat etc
+        let comboScore1 = scoreGrid(tryGrid); //clear matching blocks and repeat etc
 
         // if (comboScore1 === 0) {
         //     // no matches so score groups of 2 & 3
@@ -316,7 +316,7 @@ function getTopIndex(column) {
 
 
 
-function scoreGrid(grid, log) {
+function scoreGrid(grid) {
     let totalScore = 0;
     let stepCount = 0;
     let step = 0;
@@ -371,9 +371,9 @@ function scoreGrid(grid, log) {
             }
         }
 
-        if (log) {
-            //printGrid(grid);
-            //printGrid(checked);
+        if (rounds === debugRound) {
+            // printGrid(grid);
+            // printGrid(checked);
         }
 
         clearMatches(grid, checked);
@@ -381,21 +381,21 @@ function scoreGrid(grid, log) {
         let stepScore = (10 * stepCount) * (calculateChainPower(step) + calculateColourBonus(colourSet) + groupBonus);
         totalScore += stepScore;
 
-        if (log && false) {
-            //printGrid(grid);
-            //printGrid(checked);
-            printErr('step = ' + step);
-            printErr('stepCount = ' + stepCount);
-            printErr('chainPower = ' + calculateChainPower(step));
-            printErr('colourBonus = ' + calculateColourBonus(colourSet));
-            printErr('groupBonus = ' + groupBonus);
-            printErr('stepScore = ' + stepScore);
-            printErr('totalScore = ' + totalScore);
+        if (rounds === debugRound) {
+            // printGrid(grid);
+            // printGrid(checked);
+            // printErr('step = ' + step);
+            // printErr('stepCount = ' + stepCount);
+            // printErr('chainPower = ' + calculateChainPower(step));
+            // printErr('colourBonus = ' + calculateColourBonus(colourSet));
+            // printErr('groupBonus = ' + groupBonus);
+            // printErr('stepScore = ' + stepScore);
+            // printErr('totalScore = ' + totalScore);
         }
 
     } while (stepCount !== 0);
 
-    if (log) {
+    if (rounds === debugRound) {
         printErr('totalScore = ' + totalScore)
     }
 
