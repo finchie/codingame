@@ -92,7 +92,9 @@ while (true) {
         const row = readline(); // One line of the map ('.' = empty, '0' = skull block, '1' to '5' = colored block)
     }
     //printGrid(grid);
-    //printErr(blocks);
+    if (rounds === debugRound) {
+        printErr('blocks = ' + blocks);
+    }
 
     /*
      main algorithm
@@ -106,38 +108,122 @@ while (true) {
 
     let highestScoringCombo = new Combo(MIN_COLUMN, HORIZONTAL);
     let highestScore = 0;
-    let columnHeights;
+    // let highestScore2 = 0;
+    let runningScore = 0;
 
     // exclude invalid combinations for this grid
-    columnHeights = getColumnHeights(grid);
+    let columnHeights1 = getColumnHeights(grid);
     //printErr('columnHeights = ' + columnHeights);
-    let validCombos = combos.filter(c => !isInvalidCombination(c, columnHeights));
+    let validCombos = combos.filter(c => !isInvalidCombination(c, columnHeights1));
+    //let comboScores = new Array(validCombos.length).fill(0).map(_ => new Array(validCombos.length));
 
     // for each possible combination (colIndex, rotation)
-    validCombos.forEach(combo => {
+    validCombos.forEach((combo1, index1) => {
 
-        //printErr('(colIndex, rotation) = '  + '(' + combo.colIndex + ', ' + combo.rotationIndex + ')');
+        //printErr('(colIndex, rotation) = '  + '(' + combo1.colIndex + ', ' + combo1.rotationIndex + ')');
 
         // generate new grid
-        const tryGrid = newGrid(grid, combo, blocks[0]);
+        const tryGrid = newGrid(grid, combo1, blocks[0]);
         //printGrid(tryGrid);
 
         // score grid
-        let score = scoreGrid(tryGrid, rounds === debugRound); //clear matching blocks and repeat etc
+        let comboScore1 = scoreGrid(tryGrid, rounds === debugRound); //clear matching blocks and repeat etc
+
+        // if (comboScore1 === 0) {
+        //     // no matches so score groups of 2 & 3
+        //     comboScore1 = scoreGridNoMatches(tryGrid, scoreMap, false);
+        // }
+        if (comboScore1 === 0) {
+            // no matches so score columns only
+            comboScore1 = calculateColumnScore(combo1.getColumnIndexes());
+        }
         if (rounds === debugRound) {
-            printErr('score = ' + score + ' for combo: ' + combo.colIndex + ' ' + combo.rotationIndex);
+            printErr('score = ' + comboScore1 + ' for combo: ' + combo1.colIndex + ' ' + combo1.rotationIndex);
         }
 
-        if (score === 0) {
-            // no matches so score groups of 2 & 3
-            score = scoreGridNoMatches(tryGrid, scoreMap, false) + calculateColumnScore(combo.getColumnIndexes());
-        }
+        // exclude invalid combinations for this grid
+        let columnHeights2 = getColumnHeights(tryGrid);
+        //printErr('.columnHeights = ' + columnHeights2);
+        let validCombos2 = combos.filter(c => !isInvalidCombination(c, columnHeights2));
 
-        // compare with current highest score & replace if it is higher
-        if (score > highestScore) {
-            highestScore = score;
-            highestScoringCombo = combo;
-        }
+        // for each possible combination (colIndex, rotation)
+        validCombos2.forEach((combo2, index2) => {
+
+            //printErr('.(colIndex, rotation) = '  + '(' + combo2.colIndex + ', ' + combo2.rotationIndex + ')');
+
+            // generate new grid
+            const tryGrid2 = newGrid(tryGrid, combo2, blocks[1]);
+            //printGrid(tryGrid2);
+
+            // score grid
+            let comboScore2 = scoreGrid(tryGrid2, rounds === debugRound); //clear matching blocks and repeat etc
+
+            // if (comboScore2 === 0) {
+            //     // no matches so score groups of 2 & 3
+            //     comboScore2 = scoreGridNoMatches(tryGrid2, scoreMap, false);
+            // }
+            if (comboScore2 === 0) {
+                // no matches so score columns only
+                comboScore2 = calculateColumnScore(combo2.getColumnIndexes());
+            }
+            if (rounds === debugRound) {
+                printErr('score = ' + comboScore2 + ' for combo: ' + combo2.colIndex + ' ' + combo2.rotationIndex);
+            }
+
+
+
+            // exclude invalid combinations for this grid
+            let columnHeights3 = getColumnHeights(tryGrid2);
+            //printErr('.columnHeights = ' + columnHeights3);
+            let validCombos3 = combos.filter(c => !isInvalidCombination(c, columnHeights3));
+
+            // for each possible combination (colIndex, rotation)
+            validCombos3.forEach((combo3, index3) => {
+
+                //printErr('.(colIndex, rotation) = '  + '(' + combo3.colIndex + ', ' + combo3.rotationIndex + ')');
+
+                // generate new grid
+                const tryGrid3 = newGrid(tryGrid2, combo3, blocks[2]);
+                //printGrid(tryGrid3);
+
+                // score grid
+                let comboScore3 = scoreGrid(tryGrid3, rounds === debugRound); //clear matching blocks and repeat etc
+
+                // if (comboScore3 === 0) {
+                //     // no matches so score groups of 2 & 3
+                //     comboScore3 = scoreGridNoMatches(tryGrid3, scoreMap, false);
+                // }
+                if (comboScore3 === 0) {
+                    // no matches so score columns only
+                    comboScore3 = calculateColumnScore(combo3.getColumnIndexes());
+                }
+                if (rounds === debugRound) {
+                    printErr('score = ' + comboScore3 + ' for combo: ' + combo3.colIndex + ' ' + combo3.rotationIndex);
+                }
+
+                //comboScores[index1][index2][index3] = comboScore1 + comboScore2 + comboScore3;
+
+                // compare with current highest score & replace if it is higher
+                if (comboScore1 + comboScore2 + comboScore3 > highestScore) {
+                    highestScore = comboScore1 + comboScore2 + comboScore3;
+                    highestScoringCombo = combo1;
+                }
+            });
+
+            // // comboScores[index1][index2] = comboScore1 + comboScore2;
+            //
+            // // compare with current highest score & replace if it is higher
+            // if (comboScore1 + comboScore2 > highestScore) {
+            //     highestScore = comboScore1 + comboScore2;
+            //     highestScoringCombo = combo1;
+            // }
+        });
+
+        // // compare with current highest score & replace if it is higher
+        // if (comboScore + highestScore2 > highestScore) {
+        //     highestScore = comboScore + highestScore2;
+        //     highestScoringCombo = combo;
+        // }
     });
 
 
@@ -286,8 +372,8 @@ function scoreGrid(grid, log) {
         }
 
         if (log) {
-            printGrid(grid);
-            printGrid(checked);
+            //printGrid(grid);
+            //printGrid(checked);
         }
 
         clearMatches(grid, checked);
@@ -295,9 +381,9 @@ function scoreGrid(grid, log) {
         let stepScore = (10 * stepCount) * (calculateChainPower(step) + calculateColourBonus(colourSet) + groupBonus);
         totalScore += stepScore;
 
-        if (log) {
-            printGrid(grid);
-            printGrid(checked);
+        if (log && false) {
+            //printGrid(grid);
+            //printGrid(checked);
             printErr('step = ' + step);
             printErr('stepCount = ' + stepCount);
             printErr('chainPower = ' + calculateChainPower(step));
