@@ -98,19 +98,19 @@ while (true) {
      main algorithm
      */
     // scan grid & prepopulate score map & column heights
-    const columnHeights = [];
     const scoreMap = new Map();
     for (let c = MIN_COLUMN; c <= MAX_COLUMN; c++) {
         const column = getColumn(grid, c);
         scoreMap.set(column, calculateScoreForLine(column));
-        columnHeights.push(getColumnSize(column));
     }
-    //printErr('columnHeights = ' + columnHeights);
 
     let highestScoringCombo = new Combo(MIN_COLUMN, HORIZONTAL);
     let highestScore = 0;
+    let columnHeights;
 
-    // exclude invalid combinations
+    // exclude invalid combinations for this grid
+    columnHeights = getColumnHeights(grid);
+    //printErr('columnHeights = ' + columnHeights);
     let validCombos = combos.filter(c => !isInvalidCombination(c, columnHeights));
 
     // for each possible combination (colIndex, rotation)
@@ -145,6 +145,15 @@ while (true) {
     // To debug: printErr('Debug messages...');
 
     print(highestScoringCombo.colIndex + ' ' + highestScoringCombo.rotationIndex); // "x": the column in which to drop your blocks
+}
+
+function getColumnHeights(grid) {
+    const columnHeights = [];
+    for (let c = MIN_COLUMN; c <= MAX_COLUMN; c++) {
+        const column = getColumn(grid, c);
+        columnHeights.push(getColumnSize(column));
+    }
+    return columnHeights;
 }
 
 function getCombos() {
