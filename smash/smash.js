@@ -13,7 +13,7 @@ const HORIZONTAL = 0;
 const HORIZONTAL_REVERSE = 2;
 
 const MAX_BLOCK = 7; // 0-indexed 8th block
-const MAX_DEPTH = 2; // 0-indexed depth of 3
+const MAX_DEPTH = 1; // 0-indexed depth of 3
 
 class Combo {
     constructor(colIndex, rotationIndex) {
@@ -73,6 +73,8 @@ colScoreCard.set(3, 2);
 colScoreCard.set(4, 1);
 colScoreCard.set(5, 0);
 
+const scoreMap = new Map();
+
 let rounds = 0;
 let debugRound = -1;
 
@@ -107,7 +109,7 @@ while (true) {
      main algorithm
      */
     // scan grid & prepopulate score map & column heights
-    const scoreMap = new Map();
+    scoreMap.clear();
     for (let c = MIN_COLUMN; c <= MAX_COLUMN; c++) {
         const column = getColumn(grid, c);
         scoreMap.set(column, calculateScoreForLine(column));
@@ -116,7 +118,7 @@ while (true) {
     let highestScoringCombo = new Combo(MIN_COLUMN, HORIZONTAL);
     let highestScore = 0;
     // let highestScore2 = 0;
-    let runningScore = 0;
+    let combosEvaluated = 0;
 
     calcRecursiveScore(grid, blocks, 0, 0, new Array());
 
@@ -128,33 +130,49 @@ while (true) {
 
         let validCombos = combos.filter(c => !isInvalidCombination(c, columnHeights));
 
+        if (blockIndex >= 1) {
+            //printErr('reducing valid combos from ' + validCombos.length);
+            // only check combos either side of last combo
+            let lastCombo = comboChain[comboChain.length - 1];
+            validCombos = validCombos.filter(c => (c.colIndex === lastCombo.colIndex - 1) || (c.colIndex === lastCombo.colIndex + 1));
+            //printErr('to ' + validCombos.length);
+        }
+
         // for each possible combination (colIndex, rotation)
+        //printErr('evaluating ' + validCombos.length + ' combos');
         validCombos.forEach((combo, index) => {
 
             //printErr('combo = ' + combo);
+            combosEvaluated++;
 
             // generate new grid
             const tryGrid = newGrid(gridX, combo, blocks[blockIndex]);
             //printGrid(tryGrid);
 
             // score grid
-            let comboScore = calculateColumnScore(combo.getColumnIndexes()); //scoreGrid(tryGrid); // clear matching blocks and repeat etc
-            if (rounds === debugRound) {
+            let comboScore = scoreGrid(tryGrid, combo); // clear matching blocks and repeat etc
+
+            if (true || rounds === debugRound) {
                 printErr('score = ' + comboScore + ' for combo: ' + combo.colIndex + ' ' + combo.rotationIndex);
             }
 
             if (blockIndex === MAX_DEPTH) {
+                //printErr('combosEvaluated = ' + combosEvaluated);
+
                 // compare with current highest score & replace if it is higher
                 if (cumulativeScore + comboScore > highestScore) {
-                    //printErr(comboChain.join(', '));
                     printErr('high score of ' + highestScore + ' replaced by ' + (cumulativeScore + comboScore));
+                    printErr(comboChain.join(', ') + ', ' + combo);
                     highestScore = cumulativeScore + comboScore;
                     highestScoringCombo = comboChain[0];
                 }
+                else {
+                    printErr('high score of ' + highestScore + ' not replaced by ' + (cumulativeScore + comboScore));
+                    printErr(comboChain.join(', ') + ', ' + combo);
+                }
             }
             else {
-                comboChain.push(combo);
-                calcRecursiveScore(tryGrid, blocks, blockIndex + 1, cumulativeScore + comboScore, comboChain);
+                calcRecursiveScore(tryGrid, blocks, blockIndex + 1, cumulativeScore + comboScore, comboChain.concat(combo));
             }
         });
     }
@@ -252,8 +270,98 @@ function getTopIndex(column) {
 
 
 
-function scoreGrid(grid) {
-    return Math.random() * 100;
+function scoreGrid(grid, combo) {
+    let totalScore = 0;
+    let stepCount = 0;
+    let step = 0;
+    let groupBonus = 0;
+    const colourSet = new Set();
+
+    // each step
+    do {
+        step++;
+        stepCount = 0;
+        colourSet.clear();
+        groupBonus = 0;
+
+        const checked = new Array(MAX_ROW + 1).fill(0).map(_ => new Array(MAX_COLUMN + 1).fill(STATUS_UNCHECKED));
+
+        for (let rowIndex = MAX_ROW; rowIndex >= 0; rowIndex--) {
+            for (let colIndex = 0; colIndex <= MAX_COLUMN; colIndex++) {
+
+                //console.log('rowIndex = ' + rowIndex + ', colIndex = ' + colIndex);
+                //console.log('checked[rowIndex][colIndex] = ' + checked[rowIndex][colIndex]);
+                //if (rowIndex >= 10) {printGrid(checked);}
+                if (!checked[rowIndex][colIndex]) {
+
+                    let val = grid[rowIndex][colIndex];
+                    //console.log('val = ' + val);
+                    if (val !== '.' && val !== '0') {
+
+                        checked[rowIndex][colIndex] = STATUS_CHECKED_MATCHED;
+                        let count = 1 + countMatchingNeighbours(grid, rowIndex, colIndex, checked);
+                        //if (rowIndex >= 10) {printGrid(checked);}
+
+                        if (count >= 4) {
+                            stepCount += count;
+                            colourSet.add(val);
+                            if (count >= 11) {
+                                groupBonus += 8;
+                            }
+                            else if (count >= 5) {
+                                groupBonus += (count - 4)
+                            }
+
+                            // mark matches for elimination
+                            markMatches(checked, true);
+                        }
+                        else {
+                            // mark matches as done
+                            markMatches(checked, false);
+                        }
+                        //if (rowIndex >= 10) {printGrid(checked);}
+                    }
+                }
+            }
+        }
+
+        if (rounds === debugRound) {
+            // printGrid(grid);
+            // printGrid(checked);
+        }
+
+        clearMatches(grid, checked);
+
+        let stepScore = (10 * stepCount) * (calculateChainPower(step) + calculateColourBonus(colourSet) + groupBonus);
+        totalScore += stepScore;
+
+        if (rounds === debugRound) {
+            // printGrid(grid);
+            // printGrid(checked);
+            // printErr('step = ' + step);
+            // printErr('stepCount = ' + stepCount);
+            // printErr('chainPower = ' + calculateChainPower(step));
+            // printErr('colourBonus = ' + calculateColourBonus(colourSet));
+            // printErr('groupBonus = ' + groupBonus);
+            // printErr('stepScore = ' + stepScore);
+            // printErr('totalScore = ' + totalScore);
+        }
+
+    } while (stepCount !== 0);
+
+    if (totalScore === 0) {
+        totalScore = scoreGridNoMatches(grid);
+    }
+
+    if (totalScore === 0) {
+        totalScore = calculateColumnScore(combo.getColumnIndexes());
+    }
+
+    if (rounds === debugRound) {
+        printErr('totalScore = ' + totalScore)
+    }
+
+    return totalScore;
 }
 
 function countMatchingNeighbours(grid, rowIndex, colIndex, checked) {
@@ -376,7 +484,7 @@ function calculateChainPower(step) {
 
 
 
-function scoreGridNoMatches(gridToScore, scoreMap, log) {
+function scoreGridNoMatches(gridToScore) {
 
     let gridScore = 0;
 
@@ -384,7 +492,7 @@ function scoreGridNoMatches(gridToScore, scoreMap, log) {
     for (let colIndex = MIN_COLUMN; colIndex <= MAX_COLUMN; colIndex++) {
         let column = getColumn(gridToScore, colIndex);
         if (!scoreMap.get(column)) {
-            scoreMap.set(column, calculateScoreForLine(column, log));
+            scoreMap.set(column, calculateScoreForLine(column));
         }
         gridScore += scoreMap.get(column);
     }
@@ -392,7 +500,7 @@ function scoreGridNoMatches(gridToScore, scoreMap, log) {
     // score each row
     gridToScore.forEach(row => {
         if (!scoreMap.get(row)) {
-            scoreMap.set(row, calculateScoreForLine(row, log));
+            scoreMap.set(row, calculateScoreForLine(row));
         }
         gridScore += scoreMap.get(row);
     });
@@ -409,7 +517,7 @@ function calculateColumnScore(colIndexes) {
     return score;
 }
 
-function calculateScoreForLine(line, log) {
+function calculateScoreForLine(line) {
     let score = 0;
     let currentColour = '.';
     let streak = 0;
@@ -427,7 +535,7 @@ function calculateScoreForLine(line, log) {
             // when colour changes, increase running score according to criteria
             if (currentColour !== '.' && currentColour !== '0') {
                 score += scoreCard.get(streak);
-                if (log) {
+                if (rounds === debugRound) {
                     //printErr('streak of ' + streak + ' ' + currentColour + 's ended, score = ' + score);
                 }
             }
@@ -437,7 +545,7 @@ function calculateScoreForLine(line, log) {
         }
     });
 
-    if (log) {
+    if (rounds === debugRound) {
         //printErr('scored ' + score + ' for ' + line.join(' '));
     }
 
