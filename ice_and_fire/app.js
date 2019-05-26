@@ -12,6 +12,7 @@ const MAX_CELL_INDEX = 11;
 const MIN_CELL_INDEX = 0;
 
 let positions = [];
+let histories = new Map();
 
 // classes to represent game objects
 class Cell {
@@ -34,7 +35,6 @@ class Building {
         return this.owner + ' ' + this.type + ' ' + this.x + ' ' + this.y;
     }
 }
-
 class Unit {
     constructor(owner, id, level, x, y) {
         this.owner = owner;
@@ -100,49 +100,65 @@ while (true) {
         units[i] = new Unit(owner, unitId, level, x, y);
     }
     
-    const myHQ = ownHQ(buildings);
-    const myUnits = ownUnits(units);
+    const myHQ = findBuilding(buildings, OWNED, BUILDING_HQ);
+    const myUnits = findUnits(units, OWNED);
+    
+    const enemyHQ = findBuilding(buildings, ENEMY, BUILDING_HQ);
+    const enemyUnits = findUnits(units, ENEMY);
+    
     let command = 'WAIT';
 
     // Write an action using console.log()
     // To debug: console.error('Debug messages...');
     
+    let level = 0;
     // if no units yet then create unit starting at HQ
     if (myUnits.length === 0) {
-        positions.push(myHQ);
+       level = 1;
+    }
+    else if (income > 20) {
+        // create level 3 unit
+       level = 3;
+    }
+    else if (income > 8) {
+        // create level 2
+       level = 2;
+    }
+    else if (income > 2) {
+        // create level 1
+       level = 1;
+    }
+    if (level > 0) {
+         positions.push(myHQ);
         // find next available cell to train unit
         const nextCell = nextAvailableCell(grid, positions.slice() );
-        console.error('nextCell: ', nextCell);
-        command += ';TRAIN 1 ' + nextCell.x + ' ' + nextCell.y;
-        command += ';MSG train unit';
+        if (nextCell) {
+            command += ';TRAIN ' + level + ' ' + nextCell.x + ' ' + nextCell.y;
+        }
     }
-    else if (myUnits.length === 1) {
-        const unit = myUnits[0];
+    
+    myUnits.forEach(unit => {
+        
         positions.push(unit);
         // find next available cell to move unit
-        const nextCell = nextAvailableCell(grid, positions.slice() );
+        const nextCell = closestCellToEnemyHQ(grid, enemyHQ, positions.slice() );
         
         if (nextCell) {
-            console.error('nextCell: ', nextCell);
             command += ';MOVE ' + unit.id + ' ' + nextCell.x + ' ' + nextCell.y;
-            command += ';MSG move unit';
         } 
-    }
-    else
-    {
-        command += '';
-    }
+    });
+    
     console.log(command);
 }
 
-function ownHQ(buildings) {
+function findBuilding(buildings, owner, type) {
     return buildings.find(b => {
-        return b.type === BUILDING_HQ && b.owner === OWNED;
+        return b.type === type && b.owner === owner;
     });
 }
 
-function ownUnits(units) {
-    return units.filter(u => { //console.error('ownUnits: ', u, u.owner === OWNED);
+function findUnits(units, owner) {
+    return units.filter(u => {
         return u.owner === OWNED;
     });
 }
@@ -180,9 +196,66 @@ function nextAvailableCell (grid, history) {
     }
 }
 
+function closestCellToEnemyHQ(grid, enemyHQ, history) {
+    
+    if (history.length === 0) {
+        return undefined;
+    }
+    
+    const start = history.pop();
+    const east = new Cell(start.x + 1, start.y);
+    const west = new Cell(start.x - 1, start.y);
+    const south = new Cell(start.x, start.y + 1);
+    const north = new Cell(start.x, start.y - 1);
+    
+    const distances = [];
+    if (isAvailableCell(grid, east)) {
+        distances.push({cell: east, distance: distanceBetween(east, enemyHQ)});
+    }
+    if (isAvailableCell(grid, west)) {
+        distances.push({cell: west, distance: distanceBetween(west, enemyHQ)});
+    }
+    if (isAvailableCell(grid, south)) {
+        distances.push({cell: south, distance: distanceBetween(south, enemyHQ)});
+    }
+    if (isAvailableCell(grid, north)) {
+        distances.push({cell: north, distance: distanceBetween(north, enemyHQ)});
+    }
+    
+    if (distances.length > 0) {
+        // sort according to closest distance
+        distances.sort((a, b) => {
+            if (a.distance < b.distance) {
+                return -1;
+            }
+            if (a.distance > b.distance) {
+                return 1;
+            }
+            // a must be equal to b
+            return 0;
+        });
+        return distances[0].cell;
+    }
+    else {
+        // recursively find closest cell from previous positions
+        return closestCellToEnemyHQ(grid, enemyHQ, history);
+    }
+    
+}
+
+function isAvailableCell(grid, c) {
+    return isValidCell(c) && grid[c.y][c.x] !== VOID_CELL && grid[c.y][c.x] !== OWNED_ACTIVE_CELL;
+}
+
 function isValidCell(c) {
     return c.x >= MIN_CELL_INDEX
         && c.x <= MAX_CELL_INDEX
         && c.y >= MIN_CELL_INDEX
         && c.y <= MAX_CELL_INDEX;
+}
+
+function distanceBetween(cell1, cell2) {
+    return Math.sqrt(
+        (Math.pow(cell2.x - cell1.x, 2)) + (Math.pow(cell2.y - cell1.y, 2))
+    );
 }
