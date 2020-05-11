@@ -1,4 +1,4 @@
-onst deck1 = new Queue();
+const deck1 = new Queue();
 const deck2 = new Queue();
 let roundCount = 0;
 let PAT = false;
