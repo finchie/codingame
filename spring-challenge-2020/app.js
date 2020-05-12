@@ -18,8 +18,7 @@ var inputs = readline().split(' ');
 const width = parseInt(inputs[0]); // size of the grid
 const height = parseInt(inputs[1]); // top left corner is (x=0, y=0)
 const grid = [];
-let pellets = [];
-let superPellets = [];
+
 for (let i = 0; i < height; i++) {
     const row = readline(); // one line of the grid: space " " is floor, pound "#" is wall
     grid.push(row);
@@ -28,8 +27,9 @@ for (let i = 0; i < height; i++) {
 // game loop
 while (true) {
     // loop init
-    pellets = [];
-    superPellets = [];
+    let pellets = [];
+    let superPellets = [];
+    let myPacs = new Map();
 
     var inputs = readline().split(' ');
     const myScore = parseInt(inputs[0]);
@@ -44,7 +44,11 @@ while (true) {
         const typeId = inputs[4]; // unused in wood leagues
         const speedTurnsLeft = parseInt(inputs[5]); // unused in wood leagues
         const abilityCooldown = parseInt(inputs[6]); // unused in wood leagues
+        if (mine) {
+            myPacs.set(pacId, new Cell(x,y));
+        }
     }
+
     const visiblePelletCount = parseInt(readline()); // all pellets in sight
     for (let i = 0; i < visiblePelletCount; i++) {
         var inputs = readline().split(' ');
@@ -62,16 +66,54 @@ while (true) {
     // To debug: console.error('Debug messages...');
     // console.log('MOVE 0 15 10');
 
-    // eat remianing super pellets
-    if (superPellets.length > 0) {
-        const sp = superPellets[0];
-        console.log('MOVE 0 ' + sp.x + ' ' + sp.y + ' ' + 'sp=' + superPellets.length);     // MOVE <pacId> <x> <y>
-    } else if(pellets.length > 0) {
-        const p = pellets[0];
-        console.log('MOVE 0 ' + p.x + ' ' + p.y + ' ' + 'p=' + visiblePelletCount);     // MOVE <pacId> <x> <y>
-    } else {
-        console.log('MOVE 0 ' + '15' + ' ' + '10' + ' ' + 'p=' + visiblePelletCount);     // MOVE <pacId> <x> <y>
-    }
+    // construct move commands
+    let cmd = '';
+    let superTargets = superPellets.slice(0);
+    let targets = pellets.slice(0);
+    myPacs.forEach((cell, pacId) => {
+        console.error('pacId=' + pacId + ', cell=' + cell);
+         if (superTargets.length > 0) {
+            // find closest super pellet
+            const target = findClosest(cell, superTargets);
+            // remove target so other pacs don't target same super pellet
+            removeFromArray(target, superTargets);
+            cmd = cmd + 'MOVE ' + pacId + ' ' + target.x + ' ' + target.y + ' |';
+        } else if(targets.length > 0) {
+            // find closest super pellet
+            const target = findClosest(cell, targets);
+            // remove target so other pacs don't target same pellet
+            removeFromArray(target, targets);
+            cmd = cmd + 'MOVE ' + pacId + ' ' + target.x + ' ' + target.y + ' |';
+        } else {
+            cmd = cmd + 'MOVE 0 ' + '15' + ' ' + '10' + ' ' + 'p=' + visiblePelletCount;     // MOVE <pacId> <x> <y>
+        }
+    });
     
+    console.log(cmd);
+}
 
+function simpleDistance(cell1, cell2) {
+    const a = Math.abs(cell1.x - cell2.x);
+    const b = Math.abs(cell1.y - cell2.y);
+    return Math.sqrt(a*a + b*b);
+}
+
+function findClosest(cell, targets) {
+    let closestDistance = Number.MAX_SAFE_INTEGER;
+    let closestTarget = targets[0];
+    targets.forEach((target) => {
+        let distance = simpleDistance(cell, target);
+        if (distance < closestDistance) {
+            closestDistance = distance;
+            closestTarget = target;
+        }
+    });
+    return closestTarget;
+}
+
+function removeFromArray(element, array) {
+    const index = array.indexOf(element);
+    if (index > -1) {
+        array.splice(index, 1);
+    }
 }
