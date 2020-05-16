@@ -8,6 +8,9 @@ class Cell {
         this.x = x;
         this.y = y;
     }
+    equals(otherCell) {
+        return (this.x === otherCell.x) && (this.y === otherCell.y);
+    }
     toString() {
         return this.x + ' ' + this.y;
     }
@@ -26,6 +29,47 @@ class Pac {
     }
 }
 
+class Trail {
+    constructor() {
+        this.moves = [];
+    }
+    push(cell) {
+        this.moves.push(cell);
+    }
+    getLastCell(indexFromEnd) {
+        return this.moves[this.moves.length - 1 - indexFromEnd];
+    }
+    getLastDistinctCell(index) {
+        if (index < 1) {
+            return this.getLastCell(0);
+        } else {
+            let indexFromEnd = 0;
+            let currentCell, previousCell;
+            while (index > 0 && indexFromEnd < this.moves.length) {
+                currentCell = this.getLastCell(indexFromEnd);
+                previousCell = this.getLastCell(indexFromEnd + 1);
+                if (!currentCell.equals(previousCell)) {
+                    index -= 1;
+                }
+                indexFromEnd += 1;
+            }
+            return previousCell;
+        }
+    }
+    isBlocked() {
+        if (this.moves.length < 2) {
+            return false;
+        } else {
+            const lastCell = this.getLastCell(0);
+            const penultimateCell = this.getLastCell(1);
+            return lastCell.equals(penultimateCell);
+        }
+    }
+    toString() {
+        return this.moves;
+    }
+}
+
 const FLOOR = ' ';
 const WALL = '#';
 const PELLET = '.'
@@ -39,6 +83,8 @@ const width = parseInt(inputs[0]); // size of the grid
 const height = parseInt(inputs[1]); // top left corner is (x=0, y=0)
 const grid = [];
 let previousPacPositions = [];
+const trailMap = new Map();
+const cmdMap = new Map();
 
 for (let i = 0; i < height; i++) {
     const row = readline(); // one line of the grid: space " " is floor, pound "#" is wall
@@ -55,6 +101,7 @@ while (true) {
     let possiblePellets = [];
     let myPacs = new Map();
     let yourPacs = new Map();
+    let blockageUnresolved = true;
 
     // gather score data
     var inputs = readline().split(' ');
@@ -76,12 +123,27 @@ while (true) {
         const pac = new Pac(pacId, new Cell(x,y), typeId, speedTurnsLeft, abilityCooldown)
         if (mine) {
             myPacs.set(pacId, pac);
+
+            // create trail if 1st round
+            if(!trailMap.has(pacId)) {
+                trailMap.set(pacId, new Trail());
+            }
+
+            // add current location to trail
+            const trail = trailMap.get(pacId);
+            trail.push(pac.cell);
+
+            // create cmd history if 1st round
+            if(!cmdMap.has(pac.id)) {
+                cmdMap.set(pac.id, []);
+            }
         } else {
             yourPacs.set(pacId, pac);
         }
     }
+    console.error('visible enemy pacs=' + yourPacs.size);
 
-    // move pacs
+    // move pacs in model
     // first erase previous pac positions
     previousPacPositions.forEach(cell => {
         setGridCell(grid, cell, FLOOR);
@@ -147,7 +209,23 @@ while (true) {
     // - give each superPellet hunter one speed boost
     const untargetedPacs = new Map(myPacs);
     const untargetedSuperPellets = superPellets.slice(0);
-    const targetedPacs = new Map()
+    const targetedPacs = new Map();
+
+    // unblock any pacs that are blocked
+    untargetedPacs.forEach(pac => {
+        const trail = trailMap.get(pac.id);
+        const commands = cmdMap.get(pac.id);
+        const SPEED_COMMAND = 'SPEED ' + pac.id + ' |';
+        const lastCommand = commands[commands.length - 1];
+        if (lastCommand !== SPEED_COMMAND && trail.isBlocked() && blockageUnresolved) {
+            console.error(pac.id + ' is blocked, trail=' + trail.toString());
+            // target penultimate distinct cell (i.e. go back 2 or 3 moves in case SPEED is on)
+            const target = trail.getLastDistinctCell(1);
+            targetedPacs.set(pac, target);
+            untargetedPacs.delete(pac.id);
+            blockageUnresolved = false;
+        }
+    });
 
     while (untargetedPacs.size > 0 && untargetedSuperPellets.length > 0) {
         let closestPairs = new Map();
@@ -171,11 +249,10 @@ while (true) {
     }
 
     // find targets for pacs with no superpellets
-    const targets = (
-            (pellets.length > 0 && pellets.length >= untargetedPacs.size)
-            ? pellets : possiblePellets
-        ).slice(0);
     untargetedPacs.forEach(pac => {
+        const targets = (
+                pelletsVisibleToPac(pac, pellets) ? pellets : possiblePellets
+            ).slice(0);
         if(targets.length > 0) {
             let target;
             let existingTargets = Array.from(targetedPacs.values());
@@ -224,10 +301,21 @@ while (true) {
     // To debug: console.error('Debug messages...');
     // console.log('MOVE 0 15 10');
 
-    // construct move commands
+    // construct commands
     let cmd = '';
     targetedPacs.forEach((target, pac) => {
-        cmd = cmd + 'MOVE ' + pac.id + ' ' + target.x + ' ' + target.y + ' | ';
+        let pacCommand;
+        if (pac.abilityCooldown == 0) {
+            pacCommand = 'SPEED ' + pac.id + ' |';
+        } else {
+            pacCommand = 'MOVE ' + pac.id + ' ' + target.x + ' ' + target.y + ' | ';
+        }
+
+        // add command to history
+        cmdMap.get(pac.id).push(pacCommand);
+
+        // add command to output
+        cmd += pacCommand;
     });
 
     // let superTargets = superPellets.slice(0);
@@ -262,6 +350,7 @@ function simpleDistance(cell1, cell2) {
 }
 
 function findClosest(cell, targets) {
+    console.error('findClosest cell=' + cell + ', targets=' + targets);
     let closestDistance = Number.MAX_SAFE_INTEGER;
     let closestTarget = targets[0];
     targets.forEach((target) => {
@@ -304,4 +393,13 @@ function setGridCell(grid, cell, char) {
 
 function replaceAt(value, index, replacement) {
     return value.substr(0, index) + replacement + value.substr(index + replacement.length);
+}
+
+function pelletsVisibleToPac(pac, pellets) {
+    pellets.forEach(pellet => {
+        if (pellet.x === pac.cell.x || pellet.y === pac.cell.y) {
+            return true;
+        }
+    });
+    return false;
 }
