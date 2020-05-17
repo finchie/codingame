@@ -45,7 +45,7 @@ class Trail {
         } else {
             let indexFromEnd = 0;
             let currentCell, previousCell;
-            while (index > 0 && indexFromEnd < this.moves.length) {
+            while (index > 0 && indexFromEnd < this.moves.length - 1) {
                 currentCell = this.getLastCell(indexFromEnd);
                 previousCell = this.getLastCell(indexFromEnd + 1);
                 if (!currentCell.equals(previousCell)) {
@@ -69,6 +69,10 @@ class Trail {
         return this.moves;
     }
 }
+
+const ROCK = 'ROCK';
+const PAPER = 'PAPER';
+const SCISSORS = 'SCISSORS';
 
 const FLOOR = ' ';
 const WALL = '#';
@@ -110,7 +114,7 @@ while (true) {
 
     // gather pac data
     const visiblePacCount = parseInt(readline()); // all your pacs and enemy pacs in sight
-    console.error('visiblePacCount=' + visiblePacCount);
+    // console.error('visiblePacCount=' + visiblePacCount);
     for (let i = 0; i < visiblePacCount; i++) {
         var inputs = readline().split(' ');
         const pacId = parseInt(inputs[0]); // pac number (unique within a team)
@@ -141,7 +145,7 @@ while (true) {
             yourPacs.set(pacId, pac);
         }
     }
-    console.error('visible enemy pacs=' + yourPacs.size);
+    // console.error('visible enemy pacs=' + yourPacs.size);
 
     // move pacs in model
     // first erase previous pac positions
@@ -177,6 +181,8 @@ while (true) {
             pellets.push(new Cell(x, y));
         }
     }
+    // console.error('visiblePelletCount=' + visiblePelletCount);
+    // console.error('pellets=' + pellets);
 
     // add super pellets to grid
     superPellets.forEach(cell => {
@@ -197,10 +203,10 @@ while (true) {
         });
     });
 
-    // display grid
-    grid.forEach(row => {
-        console.error(row);
-    });
+    // // display grid
+    // grid.forEach(row => {
+    //     console.error(row);
+    // });
 
     // pseudo code / game logic
     // determine closest pac-superPellet pairs
@@ -215,18 +221,22 @@ while (true) {
     untargetedPacs.forEach(pac => {
         const trail = trailMap.get(pac.id);
         const commands = cmdMap.get(pac.id);
-        const SPEED_COMMAND = 'SPEED ' + pac.id + ' |';
         const lastCommand = commands[commands.length - 1];
-        if (lastCommand !== SPEED_COMMAND && trail.isBlocked() && blockageUnresolved) {
+        const MOVE_COMMAND = 'MOVE';
+        const LAST_COMMAND_WAS_MOVE = (lastCommand) ? lastCommand.startsWith(MOVE_COMMAND) : false;
+        if (LAST_COMMAND_WAS_MOVE && trail.isBlocked() && blockageUnresolved) {
             console.error(pac.id + ' is blocked, trail=' + trail.toString());
             // target penultimate distinct cell (i.e. go back 2 or 3 moves in case SPEED is on)
             const target = trail.getLastDistinctCell(1);
-            targetedPacs.set(pac, target);
-            untargetedPacs.delete(pac.id);
-            blockageUnresolved = false;
+            if (!target.equals(pac.cell)) {
+                targetedPacs.set(pac, target);
+                untargetedPacs.delete(pac.id);
+                blockageUnresolved = false;
+            }
         }
     });
 
+    // target remaining superpellets
     while (untargetedPacs.size > 0 && untargetedSuperPellets.length > 0) {
         let closestPairs = new Map();
         untargetedPacs.forEach(pac => {
@@ -250,9 +260,9 @@ while (true) {
 
     // find targets for pacs with no superpellets
     untargetedPacs.forEach(pac => {
-        const targets = (
-                pelletsVisibleToPac(pac, pellets) ? pellets : possiblePellets
-            ).slice(0);
+        const pelletsVisibleToPac = targetsVisibleToPac(pac, pellets);
+        const targets = (pelletsVisibleToPac ? pellets : possiblePellets).slice(0);
+        // console.error('pelletsVisibleToPac ' + pac.id + ' = ' + pelletsVisibleToPac);
         if(targets.length > 0) {
             let target;
             let existingTargets = Array.from(targetedPacs.values());
@@ -270,7 +280,7 @@ while (true) {
                 } else {
                     closestExistingTargetDistance = Number.MAX_SAFE_INTEGER;
                 }
-            } while (closestExistingTargetDistance < 1.4);
+            } while (closestExistingTargetDistance < 1.4 && targets.length > 0);
             targetedPacs.set(pac, target);
         } else {
             let target;
@@ -294,8 +304,8 @@ while (true) {
             targetedPacs.set(pac, target);
         }
     });
-    console.error('targetedPacs');
-    console.error(targetedPacs);
+    // console.error('targetedPacs');
+    // console.error(targetedPacs);
 
     // Write an action using console.log()
     // To debug: console.error('Debug messages...');
@@ -306,8 +316,38 @@ while (true) {
     targetedPacs.forEach((target, pac) => {
         let pacCommand;
         if (pac.abilityCooldown == 0) {
-            pacCommand = 'SPEED ' + pac.id + ' |';
-        } else {
+            const yourPacCells = Array.from(yourPacs.values()).map(pac => pac.cell);
+            // console.error('yourPacCells=' + yourPacCells);
+            let pacsVisibleToPac = (yourPacs.size > 0) ? targetsVisibleToPac(pac, yourPacCells) : false;
+            // console.error('pacsVisibleToPac ' + pac.id + ' =' + pacsVisibleToPac);
+            if (pacsVisibleToPac) {
+                const closestCell = findClosest(pac.cell, yourPacCells);
+                // console.error('closestCell=' + closestCell);
+                const closestPac = findPacAtCell(closestCell, yourPacs);
+                // console.error('closestPac=' + closestPac);
+                if (closestPac) {
+                    // console.error('pac.type=' + pac.type + ', closestPac.type=' + closestPac.type);
+                    // console.error('strongerThan(pac.type, closestPac.type)=' + strongerThan(pac.type, closestPac.type));
+                    if ((simpleDistance(pac.cell, closestPac.cell) <= 2)) {
+                        let newType;
+                        if (closestPac.abilityCooldown == 0) {
+                            newType = getStrongerType(getStrongerType(pac.type));
+                        } else {
+                            if (!strongerThan(pac.type, closestPac.type)) {
+                                newType = getStrongerType(pac.type);
+                            }
+                        }
+                        if (newType) {
+                            pacCommand = 'SWITCH ' + pac.id + ' ' + newType + ' |';
+                        }
+                    }
+                }
+            }
+        }
+        // if (!pacCommand && pac.abilityCooldown == 0 && getRandomBoolean()) {
+        //     pacCommand = 'SPEED ' + pac.id + ' |';
+        // }
+        if (!pacCommand) {
             pacCommand = 'MOVE ' + pac.id + ' ' + target.x + ' ' + target.y + ' | ';
         }
 
@@ -317,28 +357,6 @@ while (true) {
         // add command to output
         cmd += pacCommand;
     });
-
-    // let superTargets = superPellets.slice(0);
-    // let targets = pellets.slice(0);
-    // myPacs.forEach((pac) => {
-    //     console.error(pac);
-    //      if (superTargets.length > 0) {
-    //         // find closest super pellet
-    //         const target = findClosest(pac.cell, superTargets);
-    //         // remove target so other pacs don't target same super pellet
-    //         removeFromArray(target, superTargets);
-    //         cmd = cmd + 'MOVE ' + pac.id + ' ' + target.x + ' ' + target.y + ' | ';
-    //     } else if(targets.length > 0) {
-    //         // find closest pellet
-    //         const target = findClosest(pac.cell, targets);
-    //         // remove target so other pacs don't target same pellet
-    //         removeFromArray(target, targets);
-    //         cmd = cmd + 'MOVE ' + pac.id + ' ' + target.x + ' ' + target.y + ' | ';
-    //     } else {
-    //         cmd = cmd + 'MOVE ' + pac.id + ' ' + '15' + ' ' + '10' + ' | ';     // MOVE <pacId> <x> <y>
-    //     }
-    // });
-    console.error('visiblePelletCount=' + visiblePelletCount);
     
     console.log(cmd);
 }
@@ -350,7 +368,7 @@ function simpleDistance(cell1, cell2) {
 }
 
 function findClosest(cell, targets) {
-    console.error('findClosest cell=' + cell + ', targets=' + targets);
+    // console.error('findClosest cell=' + cell + ', targets=' + targets);
     let closestDistance = Number.MAX_SAFE_INTEGER;
     let closestTarget = targets[0];
     targets.forEach((target) => {
@@ -395,11 +413,54 @@ function replaceAt(value, index, replacement) {
     return value.substr(0, index) + replacement + value.substr(index + replacement.length);
 }
 
-function pelletsVisibleToPac(pac, pellets) {
-    pellets.forEach(pellet => {
-        if (pellet.x === pac.cell.x || pellet.y === pac.cell.y) {
-            return true;
+function targetsVisibleToPac(pac, targets) {
+    let visible = false;
+    targets.forEach(target => {
+        const inlineVertical = (target.x === pac.cell.x);
+        const inlineHorizontal = (target.y === pac.cell.y);
+        if ((inlineVertical || inlineHorizontal)) {
+            visible = true;
         }
     });
-    return false;
+    return visible;
+}
+
+function findPacAtCell(cell, pacs) {
+    let foundPac;
+    pacs.forEach(pac => {
+        if (pac.cell.equals(cell)) {
+            foundPac = pac;
+        }
+    });
+    return foundPac;
+}
+
+function strongerThan(t1, t2) {
+    switch(t1) {
+        case ROCK:
+            return t2 === SCISSORS;
+            break;
+        case PAPER:
+            return t2 === ROCK;
+            break;
+        case SCISSORS:
+            return t2 === PAPER;
+    }
+}
+
+function getStrongerType(type) {
+    switch(type) {
+        case ROCK:
+            return PAPER;
+            break;
+        case PAPER:
+            return SCISSORS;
+            break;
+        case SCISSORS:
+            return ROCK;
+    }
+}
+
+function getRandomBoolean() {
+  return (Math.random() >= 0.5);
 }
