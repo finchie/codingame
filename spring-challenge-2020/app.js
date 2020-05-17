@@ -93,8 +93,8 @@ const FLOOR = ' ';
 const WALL = '#';
 const PELLET = '.'
 const SUPER_PELLET = 'o';
-const MY_PAC = '*';
-const YOUR_PAC = '^';
+const MY_PAC = '☻';
+const YOUR_PAC = '☺';
 
 // initialisation
 var inputs = readline().split(' ');
@@ -266,7 +266,7 @@ while (true) {
     // find targets for pacs with no superpellets
     untargetedPacs.forEach(pac => {
         const pelletsVisibleToPac = targetsVisibleToPac(pac, pellets);
-        const targets = (pelletsVisibleToPac ? pellets : possiblePellets).slice(0);
+        const targets = (pelletsVisibleToPac.length > 0 ? pelletsVisibleToPac : possiblePellets).slice(0);
         console.error('pelletsVisibleToPac ' + pac.id + ' = ' + pelletsVisibleToPac);
         console.error('pellets=' + pellets);
         if(targets.length > 0) {
@@ -324,10 +324,10 @@ while (true) {
         if (pac.abilityCooldown == 0) {
             const yourPacCells = Array.from(yourPacs.values()).map(pac => pac.cell);
             // console.error('yourPacCells=' + yourPacCells);
-            let pacsVisibleToPac = (yourPacs.size > 0) ? targetsVisibleToPac(pac, yourPacCells) : false;
+            let pacsVisibleToPac = (yourPacs.size > 0) ? targetsVisibleToPac(pac, yourPacCells) : [];
             // console.error('pacsVisibleToPac ' + pac.id + ' =' + pacsVisibleToPac);
-            if (pacsVisibleToPac) {
-                const closestCell = findClosest(pac.cell, yourPacCells);
+            if (pacsVisibleToPac.length > 0) {
+                const closestCell = findClosest(pac.cell, pacsVisibleToPac);
                 // console.error('closestCell=' + closestCell);
                 const closestPac = findPacAtCell(closestCell, yourPacs);
                 // console.error('closestPac=' + closestPac);
@@ -354,7 +354,7 @@ while (true) {
         //     pacCommand = 'SPEED ' + pac.id + ' |';
         // }
         if (!pacCommand) {
-            pacCommand = 'MOVE ' + pac.id + ' ' + target.x + ' ' + target.y + ' | ';
+            pacCommand = 'MOVE ' + pac.id + ' ' + target.x + ' ' + target.y + ' ' + target.x + ' ' + target.y + ' | ';
         }
 
         // add command to history
@@ -419,16 +419,53 @@ function replaceAt(value, index, replacement) {
     return value.substr(0, index) + replacement + value.substr(index + replacement.length);
 }
 
+function getGridCellContents(grid, cell) {
+    console.error('cell [' + cell + ']=' + grid[cell.y].substr(cell.x, 1));
+    return grid[cell.y].substr(cell.x, 1);
+}
+
 function targetsVisibleToPac(pac, targets) {
-    let visible = false;
+    // console.error('pac=' + pac);
+    // console.error('targets=' + targets);
+    const inlineVertical = [];
+    const inlineHorizontal = [];
+    const visibleTargets = [];
+    // find inline targets
     targets.forEach(target => {
-        const inlineVertical = (target.x === pac.cell.x);
-        const inlineHorizontal = (target.y === pac.cell.y);
-        if ((inlineVertical || inlineHorizontal)) {
-            visible = true;
+        if (target.x === pac.cell.x) {
+            inlineVertical.push(target);
+        }
+        else if (target.y === pac.cell.y) {
+            inlineHorizontal.push(target);
         }
     });
-    return visible;
+    // console.error('inlineVertical=' + inlineVertical);
+    // console.error('inlineHorizontal=' + inlineHorizontal);
+    // find target without intervening walls
+    inlineVertical.forEach(target => {
+        const increment = (target.y > pac.cell.y) ? 1 : -1;
+        let y = pac.cell.y;
+        do {
+            y = y + increment;
+            if (y === target.y) {
+                visibleTargets.push(target);
+                break;
+            }
+        } while (getGridCellContents(grid, new Cell(target.x, y)) !== WALL);
+    });
+    inlineHorizontal.forEach(target => {
+        const increment = (target.x > pac.cell.x) ? 1 : -1;
+        let x = pac.cell.x;
+        do {
+            x = x + increment;
+            if (x === target.x) {
+                visibleTargets.push(target);
+                break;
+            }
+        } while (getGridCellContents(grid, new Cell(x, target.y)) !== WALL);
+    });
+    // console.error('visibleTargets=' + visibleTargets);
+    return visibleTargets;
 }
 
 function findPacAtCell(cell, pacs) {
