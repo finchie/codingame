@@ -31,13 +31,14 @@ class Pac {
 
 class Trail {
     constructor() {
-        this.moves = [];
+        this.positions = [];
+        this.commands = [];
     }
-    push(cell) {
-        this.moves.push(cell);
+    addMove(cell) {
+        this.positions.push(cell);
     }
     getLastCell(indexFromEnd) {
-        return this.moves[this.moves.length - 1 - indexFromEnd];
+        return this.positions[this.positions.length - 1 - indexFromEnd];
     }
     getLastDistinctCell(index) {
         if (index < 1) {
@@ -45,7 +46,7 @@ class Trail {
         } else {
             let indexFromEnd = 0;
             let currentCell, previousCell;
-            while (index > 0 && indexFromEnd < this.moves.length - 1) {
+            while (index > 0 && indexFromEnd < this.positions.length - 1) {
                 currentCell = this.getLastCell(indexFromEnd);
                 previousCell = this.getLastCell(indexFromEnd + 1);
                 if (!currentCell.equals(previousCell)) {
@@ -56,8 +57,8 @@ class Trail {
             return previousCell;
         }
     }
-    isBlocked() {
-        if (this.moves.length < 2) {
+    isStationary() {
+        if (this.positions.length < 2) {
             return false;
         } else {
             const lastCell = this.getLastCell(0);
@@ -65,8 +66,22 @@ class Trail {
             return lastCell.equals(penultimateCell);
         }
     }
+    isBlocked() {
+        const lastCommand = this.getLastCommand();
+        const MOVE_COMMAND = 'MOVE';
+        const LAST_COMMAND_WAS_MOVE = (lastCommand) ? lastCommand.startsWith(MOVE_COMMAND) : false;
+        return this.isStationary() && LAST_COMMAND_WAS_MOVE;
+    }
+    addCommand(command) {
+        this.commands.push(command);
+    }
+    getLastCommand() {
+        if (this.commands.length > 0) {
+            return this.commands[this.commands.length - 1];
+        }
+    }
     toString() {
-        return this.moves;
+        return this.positions;
     }
 }
 
@@ -88,7 +103,6 @@ const height = parseInt(inputs[1]); // top left corner is (x=0, y=0)
 const grid = [];
 let previousPacPositions = [];
 const trailMap = new Map();
-const cmdMap = new Map();
 
 for (let i = 0; i < height; i++) {
     const row = readline(); // one line of the grid: space " " is floor, pound "#" is wall
@@ -135,12 +149,7 @@ while (true) {
 
             // add current location to trail
             const trail = trailMap.get(pacId);
-            trail.push(pac.cell);
-
-            // create cmd history if 1st round
-            if(!cmdMap.has(pac.id)) {
-                cmdMap.set(pac.id, []);
-            }
+            trail.addMove(pac.cell);
         } else {
             yourPacs.set(pacId, pac);
         }
@@ -203,10 +212,10 @@ while (true) {
         });
     });
 
-    // // display grid
-    // grid.forEach(row => {
-    //     console.error(row);
-    // });
+    // display grid
+    grid.forEach(row => {
+        console.error(row);
+    });
 
     // pseudo code / game logic
     // determine closest pac-superPellet pairs
@@ -220,13 +229,9 @@ while (true) {
     // unblock any pacs that are blocked
     untargetedPacs.forEach(pac => {
         const trail = trailMap.get(pac.id);
-        const commands = cmdMap.get(pac.id);
-        const lastCommand = commands[commands.length - 1];
-        const MOVE_COMMAND = 'MOVE';
-        const LAST_COMMAND_WAS_MOVE = (lastCommand) ? lastCommand.startsWith(MOVE_COMMAND) : false;
-        if (LAST_COMMAND_WAS_MOVE && trail.isBlocked() && blockageUnresolved) {
+        if (trail.isBlocked() && blockageUnresolved) {
             console.error(pac.id + ' is blocked, trail=' + trail.toString());
-            // target penultimate distinct cell (i.e. go back 2 or 3 moves in case SPEED is on)
+            // target penultimate distinct cell (i.e. go back 2 or 3 positions in case SPEED is on)
             const target = trail.getLastDistinctCell(1);
             if (!target.equals(pac.cell)) {
                 targetedPacs.set(pac, target);
@@ -262,7 +267,8 @@ while (true) {
     untargetedPacs.forEach(pac => {
         const pelletsVisibleToPac = targetsVisibleToPac(pac, pellets);
         const targets = (pelletsVisibleToPac ? pellets : possiblePellets).slice(0);
-        // console.error('pelletsVisibleToPac ' + pac.id + ' = ' + pelletsVisibleToPac);
+        console.error('pelletsVisibleToPac ' + pac.id + ' = ' + pelletsVisibleToPac);
+        console.error('pellets=' + pellets);
         if(targets.length > 0) {
             let target;
             let existingTargets = Array.from(targetedPacs.values());
@@ -304,8 +310,8 @@ while (true) {
             targetedPacs.set(pac, target);
         }
     });
-    // console.error('targetedPacs');
-    // console.error(targetedPacs);
+    console.error('targetedPacs');
+    console.error(targetedPacs);
 
     // Write an action using console.log()
     // To debug: console.error('Debug messages...');
@@ -352,7 +358,7 @@ while (true) {
         }
 
         // add command to history
-        cmdMap.get(pac.id).push(pacCommand);
+        trailMap.get(pac.id).addCommand(pacCommand);
 
         // add command to output
         cmd += pacCommand;
