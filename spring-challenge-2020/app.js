@@ -15,6 +15,26 @@ class Cell {
         return this.x + ' ' + this.y;
     }
 }
+class Grid {
+    constructor(width, height) {
+        this.width = width;
+        this.height = height;
+        this.rows = [];
+    }
+    addRow(row) {
+        this.rows.push(row);
+    }
+    setCellContents(cell, char) {
+        this.rows[cell.y] = this.replaceAt(this.rows[cell.y], cell.x, char);
+    }
+    replaceAt(value, index, replacement) {
+        return value.substr(0, index) + replacement + value.substr(index + replacement.length);
+    }
+    getCellContents(cell) {
+        // console.error('cell [' + cell + ']=' + this.grid[cell.y].substr(cell.x, 1));
+        return this.rows[cell.y].substr(cell.x, 1);
+    }
+}
 
 class Pac {
     constructor(id, cell, type, speedTurnsLeft, abilityCooldown) {
@@ -98,16 +118,16 @@ const YOUR_PAC = '☺';
 
 // initialisation
 var inputs = readline().split(' ');
-const width = parseInt(inputs[0]); // size of the grid
-const height = parseInt(inputs[1]); // top left corner is (x=0, y=0)
-const grid = [];
+// size of the grid
+// top left corner is (x=0, y=0)
+const grid = new Grid(parseInt(inputs[0]), parseInt(inputs[1]));
 let previousPacPositions = [];
 const trailMap = new Map();
 
-for (let i = 0; i < height; i++) {
+for (let i = 0; i < grid.height; i++) {
     const row = readline(); // one line of the grid: space " " is floor, pound "#" is wall
     const rowWithPellets = row.replace(/ /g, PELLET);
-    grid.push(rowWithPellets);
+    grid.addRow(rowWithPellets);
 }
 
 
@@ -159,14 +179,14 @@ while (true) {
     // move pacs in model
     // first erase previous pac positions
     previousPacPositions.forEach(cell => {
-        setGridCell(grid, cell, FLOOR);
+        grid.setCellContents(cell, FLOOR);
     });
     // then add pacs to grid
     myPacs.forEach(pac => {
-        setGridCell(grid, pac.cell, MY_PAC);
+        grid.setCellContents(pac.cell, MY_PAC);
     });
     yourPacs.forEach(pac => {
-        setGridCell(grid, pac.cell, YOUR_PAC);
+        grid.setCellContents(pac.cell, YOUR_PAC);
     });
     // finally store new pac positions
     previousPacPositions = [];
@@ -195,16 +215,16 @@ while (true) {
 
     // add super pellets to grid
     superPellets.forEach(cell => {
-        setGridCell(grid, cell, SUPER_PELLET);
+        grid.setCellContents(cell, SUPER_PELLET);
     });
 
     // add visible pellets to grid
     pellets.forEach(cell => {
-        setGridCell(grid, cell, PELLET);
+        grid.setCellContents(cell, PELLET);
     });
 
     // detect possible pellets
-    grid.forEach((row, rowIndex) => {
+    grid.rows.forEach((row, rowIndex) => {
         row.split('').forEach((char, charIndex) => {
             if(char == PELLET) {
                 possiblePellets.push(new Cell(charIndex, rowIndex));
@@ -213,7 +233,7 @@ while (true) {
     });
 
     // display grid
-    grid.forEach(row => {
+    grid.rows.forEach(row => {
         console.error(row);
     });
 
@@ -411,19 +431,6 @@ function sortMap(map) {
     return sortedMap;
 }
 
-function setGridCell(grid, cell, char) {
-    grid[cell.y] = replaceAt(grid[cell.y], cell.x, char);
-}
-
-function replaceAt(value, index, replacement) {
-    return value.substr(0, index) + replacement + value.substr(index + replacement.length);
-}
-
-function getGridCellContents(grid, cell) {
-    console.error('cell [' + cell + ']=' + grid[cell.y].substr(cell.x, 1));
-    return grid[cell.y].substr(cell.x, 1);
-}
-
 function targetsVisibleToPac(pac, targets) {
     // console.error('pac=' + pac);
     // console.error('targets=' + targets);
@@ -451,7 +458,7 @@ function targetsVisibleToPac(pac, targets) {
                 visibleTargets.push(target);
                 break;
             }
-        } while (getGridCellContents(grid, new Cell(target.x, y)) !== WALL);
+        } while (grid.getCellContents(new Cell(target.x, y)) !== WALL);
     });
     inlineHorizontal.forEach(target => {
         const increment = (target.x > pac.cell.x) ? 1 : -1;
@@ -462,7 +469,7 @@ function targetsVisibleToPac(pac, targets) {
                 visibleTargets.push(target);
                 break;
             }
-        } while (getGridCellContents(grid, new Cell(x, target.y)) !== WALL);
+        } while (grid.getCellContents(new Cell(x, target.y)) !== WALL);
     });
     // console.error('visibleTargets=' + visibleTargets);
     return visibleTargets;
