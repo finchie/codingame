@@ -34,12 +34,17 @@ class Grid {
         // console.error('cell [' + cell + ']=' + this.grid[cell.y].substr(cell.x, 1));
         return this.rows[cell.y].substr(cell.x, 1);
     }
-    clearCellIfNotWall(x, y) {
+    clearCellIfNotWall(x, y, pelletsVisibleToPac) {
         const cellToClear = new Cell(x, y);
         if (this.getCellContents(cellToClear) === WALL) {
             return false;
         } else {
-            this.setCellContents(cellToClear, FLOOR);
+            const actualPellet = pelletsVisibleToPac.filter(cell => cell.equals(cellToClear));
+            if (actualPellet.length > 0) {
+                this.setCellContents(cellToClear, PELLET);
+            } else {
+                this.setCellContents(cellToClear, FLOOR);
+            }
             return true;
         }
     }
@@ -185,6 +190,42 @@ while (true) {
     }
     // console.error('visible enemy pacs=' + yourPacs.size);
 
+    // gather visible pellet data
+    const visiblePelletCount = parseInt(readline()); // all pellets in sight
+    for (let i = 0; i < visiblePelletCount; i++) {
+        var inputs = readline().split(' ');
+        const x = parseInt(inputs[0]);
+        const y = parseInt(inputs[1]);
+        const value = parseInt(inputs[2]); // amount of points this pellet is worth
+        if (value == 10) {
+            superPellets.push(new Cell(x, y));
+        } else {
+            pellets.push(new Cell(x, y));
+        }
+    }
+    // console.error('visiblePelletCount=' + visiblePelletCount);
+    // console.error('pellets=' + pellets);
+
+    // detect pellets visible to each pac & clear possible pellets when none visible
+    myPacs.forEach(pac => {
+        pac.pelletsVisibleToPac = targetsVisibleToPac(pac, pellets);
+        // console.error('pelletsVisibleToPac ' + pac.id + ' = ' + pac.pelletsVisibleToPac);
+        // console.error('pellets=' + pellets);
+
+        // clear possible pellets except for visible pellets
+        clearPossiblePellets(grid, pac)
+    });
+
+    // // add visible pellets to grid
+    // pellets.forEach(cell => {
+    //     grid.setCellContents(cell, PELLET);
+    // });
+
+    // add super pellets to grid
+    superPellets.forEach(cell => {
+        grid.setCellContents(cell, SUPER_PELLET);
+    });
+
     // move pacs in model
     // first erase previous pac positions
     previousPacPositions.forEach(cell => {
@@ -206,44 +247,6 @@ while (true) {
         previousPacPositions.push(pac.cell);
     });
 
-    // gather visible pellet data
-    const visiblePelletCount = parseInt(readline()); // all pellets in sight
-    for (let i = 0; i < visiblePelletCount; i++) {
-        var inputs = readline().split(' ');
-        const x = parseInt(inputs[0]);
-        const y = parseInt(inputs[1]);
-        const value = parseInt(inputs[2]); // amount of points this pellet is worth
-        if (value == 10) {
-            superPellets.push(new Cell(x, y));
-        } else {
-            pellets.push(new Cell(x, y));
-        }
-    }
-    // console.error('visiblePelletCount=' + visiblePelletCount);
-    // console.error('pellets=' + pellets);
-
-    // add super pellets to grid
-    superPellets.forEach(cell => {
-        grid.setCellContents(cell, SUPER_PELLET);
-    });
-
-    // detect pellets visible to each pac & clear possible pellets when none visible
-    myPacs.forEach(pac => {
-        pac.pelletsVisibleToPac = targetsVisibleToPac(pac, pellets);
-        // console.error('pelletsVisibleToPac ' + pac.id + ' = ' + pac.pelletsVisibleToPac);
-        // console.error('pellets=' + pellets);
-
-        // clear possible pellets if no visible pellets
-        if (pac.pelletsVisibleToPac.length == 0) {
-            clearPossiblePellets(grid, pac.cell);
-        }
-    });
-
-    // // add visible pellets to grid
-    // pellets.forEach(cell => {
-    //     grid.setCellContents(cell, PELLET);
-    // });
-
     // detect possible pellets
     grid.rows.forEach((row, rowIndex) => {
         row.split('').forEach((char, charIndex) => {
@@ -253,10 +256,10 @@ while (true) {
         });
     });
 
-    // display grid
-    grid.rows.forEach(row => {
-        console.error(row);
-    });
+    // // display grid
+    // grid.rows.forEach(row => {
+    //     console.error(row);
+    // });
 
     // pseudo code / game logic
     // determine closest pac-superPellet pairs
@@ -271,7 +274,7 @@ while (true) {
     untargetedPacs.forEach(pac => {
         const trail = trailMap.get(pac.id);
         if (trail.isBlocked() && blockageUnresolved) {
-            console.error(pac.id + ' is blocked, trail=' + trail.toString());
+            // console.error(pac.id + ' is blocked, trail=' + trail.toString());
             // target penultimate distinct cell (i.e. go back 2 or 3 positions in case SPEED is on)
             const target = trail.getLastDistinctCell(1);
             if (!target.equals(pac.cell)) {
@@ -388,11 +391,12 @@ while (true) {
                 }
             }
         }
-        // if (!pacCommand && pac.abilityCooldown == 0 && getRandomBoolean()) {
-        //     pacCommand = 'SPEED ' + pac.id + ' |';
-        // }
+        // 1 in 8 chance of speeding
+        if (!pacCommand && pac.abilityCooldown == 0 && getRandomBoolean() && getRandomBoolean() && getRandomBoolean()) {
+            pacCommand = 'SPEED ' + pac.id + ' |';
+        }
         if (!pacCommand) {
-            pacCommand = 'MOVE ' + pac.id + ' ' + target.x + ' ' + target.y + ' ' + target.x + ' ' + target.y + ' | ';
+            pacCommand = 'MOVE ' + pac.id + ' ' + target.x + ' ' + target.y + ' | ';
         }
 
         // add command to history
@@ -493,39 +497,40 @@ function targetsVisibleToPac(pac, targets) {
     return visibleTargets;
 }
 
-function clearPossiblePellets(grid, cell) {
+function clearPossiblePellets(grid, pac) {
     // clear each cell in each direction until wall is reached
     let wallNotFound;
     let x, y;
 
     // horizontally to the right
     wallNotFound = true;
-    x = cell.x;
+    x = pac.cell.x;
     while (wallNotFound && x < grid.width - 1) {
         x++;
-        wallNotFound = grid.clearCellIfNotWall(x, cell.y);
+        const cellToClear = new Cell(x, pac.cell.y);
+        wallNotFound = grid.clearCellIfNotWall(x, pac.cell.y, pac.pelletsVisibleToPac);
     }
     // horizontally to the left
     wallNotFound = true;
-    x = cell.x;
+    x = pac.cell.x;
     while (wallNotFound && x > 0) {
         x--;
-        wallNotFound = grid.clearCellIfNotWall(x, cell.y);
+        wallNotFound = grid.clearCellIfNotWall(x, pac.cell.y, pac.pelletsVisibleToPac);
     }
 
     // vertically to the bottom
     wallNotFound = true;
-    y = cell.y;
+    y = pac.cell.y;
     while (wallNotFound && y < grid.height - 1) {
         y++;
-        wallNotFound = grid.clearCellIfNotWall(cell.x, y);
+        wallNotFound = grid.clearCellIfNotWall(pac.cell.x, y, pac.pelletsVisibleToPac);
     }
     // vertically to the top
     wallNotFound = true;
-    y = cell.y;
+    y = pac.cell.y;
     while (wallNotFound && y > 0) {
         y--;
-        wallNotFound = grid.clearCellIfNotWall(cell.x, y);
+        wallNotFound = grid.clearCellIfNotWall(pac.cell.x, y, pac.pelletsVisibleToPac);
     }
 }
 
