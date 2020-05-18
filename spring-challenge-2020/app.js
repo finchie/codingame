@@ -34,6 +34,15 @@ class Grid {
         // console.error('cell [' + cell + ']=' + this.grid[cell.y].substr(cell.x, 1));
         return this.rows[cell.y].substr(cell.x, 1);
     }
+    clearCellIfNotWall(x, y) {
+        const cellToClear = new Cell(x, y);
+        if (this.getCellContents(cellToClear) === WALL) {
+            return false;
+        } else {
+            this.setCellContents(cellToClear, FLOOR);
+            return true;
+        }
+    }
 }
 
 class Pac {
@@ -218,10 +227,22 @@ while (true) {
         grid.setCellContents(cell, SUPER_PELLET);
     });
 
-    // add visible pellets to grid
-    pellets.forEach(cell => {
-        grid.setCellContents(cell, PELLET);
+    // detect pellets visible to each pac & clear possible pellets when none visible
+    myPacs.forEach(pac => {
+        pac.pelletsVisibleToPac = targetsVisibleToPac(pac, pellets);
+        // console.error('pelletsVisibleToPac ' + pac.id + ' = ' + pac.pelletsVisibleToPac);
+        // console.error('pellets=' + pellets);
+
+        // clear possible pellets if no visible pellets
+        if (pac.pelletsVisibleToPac.length == 0) {
+            clearPossiblePellets(grid, pac.cell);
+        }
     });
+
+    // // add visible pellets to grid
+    // pellets.forEach(cell => {
+    //     grid.setCellContents(cell, PELLET);
+    // });
 
     // detect possible pellets
     grid.rows.forEach((row, rowIndex) => {
@@ -285,10 +306,7 @@ while (true) {
 
     // find targets for pacs with no superpellets
     untargetedPacs.forEach(pac => {
-        const pelletsVisibleToPac = targetsVisibleToPac(pac, pellets);
-        const targets = (pelletsVisibleToPac.length > 0 ? pelletsVisibleToPac : possiblePellets).slice(0);
-        console.error('pelletsVisibleToPac ' + pac.id + ' = ' + pelletsVisibleToPac);
-        console.error('pellets=' + pellets);
+        const targets = (pac.pelletsVisibleToPac.length > 0 ? pac.pelletsVisibleToPac : possiblePellets).slice(0);
         if(targets.length > 0) {
             let target;
             let existingTargets = Array.from(targetedPacs.values());
@@ -330,8 +348,8 @@ while (true) {
             targetedPacs.set(pac, target);
         }
     });
-    console.error('targetedPacs');
-    console.error(targetedPacs);
+    // console.error('targetedPacs');
+    // console.error(targetedPacs);
 
     // Write an action using console.log()
     // To debug: console.error('Debug messages...');
@@ -473,6 +491,42 @@ function targetsVisibleToPac(pac, targets) {
     });
     // console.error('visibleTargets=' + visibleTargets);
     return visibleTargets;
+}
+
+function clearPossiblePellets(grid, cell) {
+    // clear each cell in each direction until wall is reached
+    let wallNotFound;
+    let x, y;
+
+    // horizontally to the right
+    wallNotFound = true;
+    x = cell.x;
+    while (wallNotFound && x < grid.width - 1) {
+        x++;
+        wallNotFound = grid.clearCellIfNotWall(x, cell.y);
+    }
+    // horizontally to the left
+    wallNotFound = true;
+    x = cell.x;
+    while (wallNotFound && x > 0) {
+        x--;
+        wallNotFound = grid.clearCellIfNotWall(x, cell.y);
+    }
+
+    // vertically to the bottom
+    wallNotFound = true;
+    y = cell.y;
+    while (wallNotFound && y < grid.height - 1) {
+        y++;
+        wallNotFound = grid.clearCellIfNotWall(cell.x, y);
+    }
+    // vertically to the top
+    wallNotFound = true;
+    y = cell.y;
+    while (wallNotFound && y > 0) {
+        y--;
+        wallNotFound = grid.clearCellIfNotWall(cell.x, y);
+    }
 }
 
 function findPacAtCell(cell, pacs) {
