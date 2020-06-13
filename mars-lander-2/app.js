@@ -33,15 +33,14 @@ surfacePoints.reduce(function(previousValue, currentValue, currentIndex, array) 
   return currentValue;
 });
 
+const ANGLE_STEP = -15;
+const MAX_THRUST = 4;
+const THRUST_3 = 3;
 const flatStart = surfacePoints[flatEndIndex - 1];
 const flatEnd = surfacePoints[flatEndIndex];
 const flatCentre = new Point((flatEnd.x - flatStart.x)/2 + flatStart.x, flatEnd.y);
-const accelerationDistance = 127.333;
-const phase1aDistance = accelerationDistance * 0.2;
-const phase1bDistance = accelerationDistance * 0.667;
-const minDistanceForMaxThrust = accelerationDistance * 2;
-let hDistTotal;
-let useMaxThrust = false;
+let hDistTotal, hDistHalf, hTimeAccelerating, direction;
+let thrustIncrement, angle;
 let time = 0;
 
 printErr('surfacePoints = ' + surfacePoints);
@@ -50,13 +49,77 @@ printErr('flatEnd = ' + flatEnd);
 printErr('flatCentre = ' + flatCentre);
 
 let initialised = false;
-function initialiseCourse(initialX, initialY, initialHSpeed, initialVSpeed, initialRotation, initialPower) {
+function initialiseCourse(initialX, initialY, initialHSpeed, initialVSpeed, initialFuel, initialRotation, initialPower) {
     
     hDistTotal = flatCentre.x - initialX;
+    hDistHalf = hDistTotal / 2;
+    direction = (hDistTotal > 0) ? 1 : -1;
     printErr('hDistTotal = ' + hDistTotal);
-    if (hDistTotal > minDistanceForMaxThrust) {
-        useMaxThrust = true;
+    printErr('hDistHalf = ' + hDistHalf);
+    
+    hAcceleration = (-ANGLE_STEP / 90) * MAX_THRUST;
+    hTimeAccelerating = Math.sqrt(Math.abs(hDistHalf) / hAcceleration);
+    printErr('hAcceleration = ' + hAcceleration);
+    printErr('hTimeAccelerating = ' + hTimeAccelerating);
+    
+    thrustIncrement = new Array(initialFuel);
+    angle = new Array(initialFuel);
+    
+    // accelerate towards halfway point
+    let i = 0;
+    while (i < MAX_THRUST) {
+        thrustIncrement[i] = 1;
+        angle[i++] = 0;
     }
+    while (i < MAX_THRUST + hTimeAccelerating) {
+        thrustIncrement[i] = 0;
+        angle[i++] = ANGLE_STEP * direction;
+    }
+    while (i < MAX_THRUST + hTimeAccelerating + MAX_THRUST) {
+        thrustIncrement[i] = -1;
+        angle[i++] = 0;
+    }
+    // decelerate towards target
+    while (i < MAX_THRUST + hTimeAccelerating + MAX_THRUST + THRUST_3) {
+        thrustIncrement[i] = 1;
+        angle[i++] = -ANGLE_STEP * direction;
+    }
+    while (i < MAX_THRUST + hTimeAccelerating + MAX_THRUST + THRUST_3 + hTimeAccelerating) {
+        thrustIncrement[i] = 0;
+        angle[i++] = -ANGLE_STEP * direction;
+    }
+    while (i < MAX_THRUST + hTimeAccelerating + MAX_THRUST + THRUST_3 + hTimeAccelerating + 1) {
+        thrustIncrement[i] = 1;
+        angle[i++] = 0;
+    }
+    while (i < MAX_THRUST + hTimeAccelerating + MAX_THRUST + THRUST_3 + hTimeAccelerating + THRUST_3) {
+        thrustIncrement[i] = 0;
+        angle[i++] = 0;
+    }
+    // descend safely to landing
+    for (let index = 0; index < 0; index++) {
+        thrustIncrement[i] = 1;
+        angle[i++] = 0;
+    }
+    // let x = 0, period = 6;
+    // while (i < initialFuel) {
+    //     if (x === 0) {
+    //         thrustIncrement[i] = 1;
+    //     }
+    //     else if (x === 5) {
+    //         thrustIncrement[i] = -1;
+    //     }
+    //     else {
+    //         thrustIncrement[i] = 0;
+    //     }
+    //     angle[i++] = 0;
+    //     x = (x + 1) % period;
+    // }
+    while (i < initialFuel) {
+        thrustIncrement[i] = 0;
+        angle[i++] = 0;
+    }
+    
     
     printErr('initialiseCourse');
     printErr('initialX = ' + initialX);
@@ -65,9 +128,11 @@ function initialiseCourse(initialX, initialY, initialHSpeed, initialVSpeed, init
     printErr('initialVSpeed = ' + initialVSpeed);
     printErr('initialRotation = ' + initialRotation);
     printErr('initialPower = ' + initialPower);
-    printErr('useMaxThrust = ' + useMaxThrust);
     initialised = true;
     
+    for (let index = 0; index < initialFuel; index++) {
+        printErr('index = ' + index + ' thrustIncrement[i] = ' + thrustIncrement[index]);
+    }
 }
 
 const MAX_ROTATION = 90;
@@ -107,7 +172,7 @@ while (true) {
     printErr('time = ' + time);
     
     if (!initialised) {
-        initialiseCourse(X, Y, hSpeed, vSpeed, rotate, power);
+        initialiseCourse(X, Y, hSpeed, vSpeed, fuel, rotate, power);
     }
     
     let aboveFlat = X >= flatStart.x && X <= flatEnd.x;
@@ -115,171 +180,19 @@ while (true) {
     let tooFastV = Math.abs(vSpeed) > 40;
     let rotateNew, powerNew;
     
-    /*
-    * 1st strategy
-    */
-    // if (tooFastH) {
-    //     rotateNew = (hSpeed > 0) ? rotate + 15 :rotate - 15;
-    // }
-    // else if (aboveFlat && !tooFastH) {
-    //     /*
-    //     if (Math.abs(rotate) < 15) {
-    //         rotate = 0;
-    //     }
-    //     else {
-    //         rotate += 15 * ((rotate > 0) ? -1 : 1);
-    //     }
-    //     */
-    //     rotateNew = rotate;
-    // }
-    // else if (X < flatStart.x) {
-    //     rotateNew = rotate - 15;
-    // }
-    // else if (X > flatStart.x) {
-    //     rotateNew = rotate + 15;
-    // }
-    
-    /*
-    2nd strategy
-    */
-    // if (aboveFlat) {
-    //     // straighten up
-    //     if (rotate > 0) {
-    //         rotateNew = rotateClockwise(rotate);
-    //     }
-    //     else if (rotate < 0) {
-    //         rotateNew = rotateAntiClockwise(rotate);
-    //     }
-    //     else {
-        
-    //         if (tooFastH) {
-    //             // slow down
-    //             if (hSpeed < 0) {
-    //                 rotateNew = rotateClockwise(rotate);
-    //             }
-    //             else if (hSpeed > 0) {
-    //                 rotateNew = rotateAntiClockwise(rotate);
-    //             }
-    //         }
-    //         else {
-    //             rotateNew = rotate;
-    //         }
-    //     }
-        
-    //     if (tooFastV) {
-    //         // slow down
-    //     }
-    // }
-    // else if (X < flatStart.x) {
-    //     if (rotate >= 0) {
-    //         rotateNew = rotateClockwise(rotate);
-    //     }
-    //     else {
-    //         rotateNew = rotate;
-    //     }
-    // }
-    // else if (X > flatEnd.x) {
-    //     if (rotate <= 0) {
-    //         rotateNew = rotateAntiClockwise(rotate);
-    //     }
-    //     else {
-    //         rotateNew = rotate;
-    //     }
-    // }
-    
-    /*
-    * 3rd strategy
-    */
     let hDistRemaining = flatCentre.x - X;
     let hDistTravelled = hDistTotal - hDistRemaining;
-    let phase1a = hDistTravelled < (phase1aDistance);
-    let phase1b = !phase1a && hDistTravelled < accelerationDistance;
-    let phase2  = hDistTravelled > accelerationDistance && hDistRemaining > accelerationDistance;
-    let phase3b = hDistRemaining < (phase1aDistance);
-    let phase3a = !phase3b && hDistRemaining < accelerationDistance;
     
     printErr('hDistTotal = ' + hDistTotal);
     printErr('hDistTravelled = ' + hDistTravelled);
     printErr('hDistRemaining = ' + hDistRemaining);
     
-    if (useMaxThrust) {
-        if (phase1a) {
-            printErr('phase1a');
-            powerNew = (power + 1);
-            if (powerNew > 4) {
-                powerNew = 4;
-            }
-            if (hDistTotal >= 0) {
-                rotateNew = rotateClockwise(rotate);
-            }
-            else if (hDistTotal < 0) {
-                rotateNew = rotateAntiClockwise(rotate);
-            }
-            else {
-                rotateNew = rotate;
-            }
-        }
-        else if (phase1b) {
-            printErr('phase1b');
-            powerNew = power;
-            if (hDistTotal >= 0) {
-                rotateNew = rotateAntiClockwise(rotate);
-            }
-            else if (hDistTotal < 0) {
-                rotateNew = rotateClockwise(rotate);
-            }
-            else {
-                rotateNew = rotate;
-            }
-        }
-        else if (phase3a) {
-            printErr('phase3a');
-            powerNew = power;
-            if (hDistTotal >= 0) {
-                rotateNew = rotateClockwise(rotate);
-            }
-            else if (hDistTotal < 0) {
-                rotateNew = rotateAntiClockwise(rotate);
-            }
-            else {
-                rotateNew = rotate;
-            }
-        }
-        else if (phase3b) {
-            printErr('phase3b');
-            powerNew = (power - 1);
-            if (powerNew < 0) {
-                powerNew = 0;
-            }
-            if (hDistTotal >= 0) {
-                rotateNew = rotateAntiClockwise(rotate);
-            }
-            else if (hDistTotal < 0) {
-                rotateNew = rotateClockwise(rotate);
-            }
-            else {
-                rotateNew = rotate;
-            }
-        }
-        else {
-            // phase 2
-            powerNew = power;
-            rotateNew = rotate;
-        }
-    }
-    
-    // const height = Y - flatStart.y;
-    // const secondsTilImpact = height / vSpeed;
-    
-    // if (height < 1500) {
-    //     powerNew = 4;
-    // }
-    // else {
-    //     powerNew = 3;
-    // }
+    /*
+    * 4th strategy
+    */
 
     // rotate power. rotate is the desired rotation angle. power is the desired thrust power.
-    print(rotateNew + ' ' + powerNew);
+    print(angle[time] + ' ' + (power + thrustIncrement[time]));
     
     time++;
 }
