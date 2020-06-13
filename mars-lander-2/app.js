@@ -47,7 +47,7 @@ printErr('landingSite.end = ' + landingSite.end);
 printErr('landingSite.centre = ' + landingSite.centre);
 printErr('---------------');
 
-let hDistTotal, hDistHalf, hTimeAccelerating, direction;
+let hDistTotal;
 let thrustIncrement, angle;
 let time = 0;
 
@@ -56,14 +56,14 @@ let initialised = false;
 function initialiseCourse(initialX, initialY, initialHSpeed, initialVSpeed, initialFuel, initialRotation, initialPower) {
     
     hDistTotal = landingSite.centre.x - initialX;
-    hDistHalf = hDistTotal / 2;
-    direction = (hDistTotal > 0) ? 1 : -1;
+    const hDistHalf = hDistTotal / 2;
+    const direction = (hDistTotal > 0) ? 1 : -1;
     printErr('hDistTotal = ' + hDistTotal);
     printErr('hDistHalf = ' + hDistHalf);
     
-    hAcceleration = (-ANGLE_STEP / 90) * MAX_THRUST;
-    hTimeAccelerating = Math.sqrt(Math.abs(hDistHalf) / hAcceleration);
-    printErr('hAcceleration = ' + hAcceleration);
+    const horizontalAcceleration = MAX_THRUST * Math.sin(-15 * Math.PI / 180);
+    const hTimeAccelerating = accelerationTime(horizontalAcceleration, hDistHalf, initialHSpeed) - 25;
+    printErr('horizontalAcceleration = ' + horizontalAcceleration);
     printErr('hTimeAccelerating = ' + hTimeAccelerating);
     printErr('---------------');
     
@@ -74,30 +74,30 @@ function initialiseCourse(initialX, initialY, initialHSpeed, initialVSpeed, init
     let i = 0;
     while (i < MAX_THRUST) {
         thrustIncrement[i] = 1;
-        angle[i++] = 0;
+        angle[i++] = ANGLE_STEP * direction;
     }
     while (i < MAX_THRUST + hTimeAccelerating) {
         thrustIncrement[i] = 0;
         angle[i++] = ANGLE_STEP * direction;
     }
-    while (i < MAX_THRUST + hTimeAccelerating + MAX_THRUST) {
-        thrustIncrement[i] = -1;
+    while (i < MAX_THRUST + hTimeAccelerating + 1) {
+        thrustIncrement[i] = 0;
         angle[i++] = 0;
     }
     // decelerate towards target
-    while (i < MAX_THRUST + hTimeAccelerating + MAX_THRUST + THRUST_3) {
-        thrustIncrement[i] = 1;
-        angle[i++] = -ANGLE_STEP * direction;
-    }
-    while (i < MAX_THRUST + hTimeAccelerating + MAX_THRUST + THRUST_3 + hTimeAccelerating) {
+    // while (i < MAX_THRUST + hTimeAccelerating + 1 + THRUST_3) {
+    //     thrustIncrement[i] = 1;
+    //     angle[i++] = -ANGLE_STEP * direction;
+    // }
+    while (i < MAX_THRUST + hTimeAccelerating + 1 + hTimeAccelerating + 4) {
         thrustIncrement[i] = 0;
         angle[i++] = -ANGLE_STEP * direction;
     }
-    while (i < MAX_THRUST + hTimeAccelerating + MAX_THRUST + THRUST_3 + hTimeAccelerating + 1) {
-        thrustIncrement[i] = 1;
-        angle[i++] = 0;
-    }
-    while (i < MAX_THRUST + hTimeAccelerating + MAX_THRUST + THRUST_3 + hTimeAccelerating + THRUST_3) {
+    // while (i < MAX_THRUST + hTimeAccelerating + 1 + hTimeAccelerating + 4 + 1) {
+    //     thrustIncrement[i] = 1;
+    //     angle[i++] = 0;
+    // }
+    while (i < MAX_THRUST + hTimeAccelerating + 1 + hTimeAccelerating + 4 + THRUST_3) {
         thrustIncrement[i] = 0;
         angle[i++] = 0;
     }
@@ -140,6 +140,22 @@ function initialiseCourse(initialX, initialY, initialHSpeed, initialVSpeed, init
         printErr('index = ' + index + ' thrustIncrement[i] = ' + thrustIncrement[index] + ', angle = ' + angle[index]);
     }
     printErr('---------------');
+}
+
+function accelerationTime(acceleration, distance, initialVelocity) {
+    /**
+     * dist dx = vt + 1/2 at
+     * 
+     * => t = (-v +/- sqrt(v^2 + 4adx)) / a
+     */
+    printErr('acceleration = ' + acceleration);
+    printErr('distance = ' + distance);
+    printErr('initialVelocity = ' + initialVelocity);
+    const plus = ( (-1 * initialVelocity) + Math.sqrt((initialVelocity * initialVelocity) + Math.abs(4 * acceleration * distance))) / acceleration;
+    const minus = ( (-1 * initialVelocity) - Math.sqrt((initialVelocity * initialVelocity) + Math.abs(4 * acceleration * distance))) / acceleration;
+    // printErr('plus = ' + plus);
+    // printErr('minus = ' + minus);
+    return Math.max(plus, minus);
 }
 
 
