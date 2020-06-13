@@ -1,20 +1,35 @@
-/**
- * Auto-generated code below aims at helping you parse
- * the standard input according to the problem statement.
- **/
+const MAX_THRUST = 4;
+const THRUST_3 = 3;
+const ANGLE_STEP = -15;
+const MAX_ROTATION = 90;
+const MIN_ROTATION = -90;
 
-var surfaceN = parseInt(readline()); // the number of points used to draw the surface of Mars.
-//printErr('surfaceN = ' + surfaceN);
 class Point {
     constructor(x, y) {
         this.x = x;
         this.y = y;
     }
-    
     toString() {
         return this.x + ' ' + this.y;
     }
 }
+class FlatGround{
+    constructor(surfacePoints) {
+        let flatEndIndex;
+        surfacePoints.reduce(function(previousValue, currentValue, currentIndex) {
+          if (previousValue.y === currentValue.y) {
+              flatEndIndex = currentIndex;
+          }
+          return currentValue;
+        });
+        this.start = surfacePoints[flatEndIndex - 1];
+        this.end = surfacePoints[flatEndIndex];
+        this.centre = new Point((this.end.x - this.start.x)/2 + this.start.x, this.end.y);
+    }
+}
+
+// read surface
+const surfaceN = parseInt(readline()); // the number of points used to draw the surface of Mars.
 const surfacePoints = [];
 for (var i = 0; i < surfaceN; i++) {
     var inputs = readline().split(' ');
@@ -22,36 +37,25 @@ for (var i = 0; i < surfaceN; i++) {
     var landY = parseInt(inputs[1]); // Y coordinate of a surface point. By linking all the points together in a sequential fashion, you form the surface of Mars.
     surfacePoints.push(new Point(landX, landY));
 }
+printErr('surfacePoints = ' + surfacePoints);
+printErr('---------------');
 
 // calculate flat ground
-let flatEndIndex;
+const landingSite = new FlatGround(surfacePoints);
+printErr('landingSite.start = ' + landingSite.start);
+printErr('landingSite.end = ' + landingSite.end);
+printErr('landingSite.centre = ' + landingSite.centre);
+printErr('---------------');
 
-surfacePoints.reduce(function(previousValue, currentValue, currentIndex, array) {
-  if (previousValue.y === currentValue.y) {
-      flatEndIndex = currentIndex;
-  }
-  return currentValue;
-});
-
-const ANGLE_STEP = -15;
-const MAX_THRUST = 4;
-const THRUST_3 = 3;
-const flatStart = surfacePoints[flatEndIndex - 1];
-const flatEnd = surfacePoints[flatEndIndex];
-const flatCentre = new Point((flatEnd.x - flatStart.x)/2 + flatStart.x, flatEnd.y);
 let hDistTotal, hDistHalf, hTimeAccelerating, direction;
 let thrustIncrement, angle;
 let time = 0;
 
-printErr('surfacePoints = ' + surfacePoints);
-printErr('flatStart = ' + flatStart);
-printErr('flatEnd = ' + flatEnd);
-printErr('flatCentre = ' + flatCentre);
 
 let initialised = false;
 function initialiseCourse(initialX, initialY, initialHSpeed, initialVSpeed, initialFuel, initialRotation, initialPower) {
     
-    hDistTotal = flatCentre.x - initialX;
+    hDistTotal = landingSite.centre.x - initialX;
     hDistHalf = hDistTotal / 2;
     direction = (hDistTotal > 0) ? 1 : -1;
     printErr('hDistTotal = ' + hDistTotal);
@@ -61,6 +65,7 @@ function initialiseCourse(initialX, initialY, initialHSpeed, initialVSpeed, init
     hTimeAccelerating = Math.sqrt(Math.abs(hDistHalf) / hAcceleration);
     printErr('hAcceleration = ' + hAcceleration);
     printErr('hTimeAccelerating = ' + hTimeAccelerating);
+    printErr('---------------');
     
     thrustIncrement = new Array(initialFuel);
     angle = new Array(initialFuel);
@@ -128,15 +133,15 @@ function initialiseCourse(initialX, initialY, initialHSpeed, initialVSpeed, init
     printErr('initialVSpeed = ' + initialVSpeed);
     printErr('initialRotation = ' + initialRotation);
     printErr('initialPower = ' + initialPower);
+    printErr('---------------');
     initialised = true;
     
     for (let index = 0; index < initialFuel; index++) {
-        printErr('index = ' + index + ' thrustIncrement[i] = ' + thrustIncrement[index]);
+        printErr('index = ' + index + ' thrustIncrement[i] = ' + thrustIncrement[index] + ', angle = ' + angle[index]);
     }
+    printErr('---------------');
 }
 
-const MAX_ROTATION = 90;
-const MIN_ROTATION = -90;
 
 function rotateClockwise(angle) {
     if (angle === MIN_ROTATION) {
@@ -166,26 +171,27 @@ while (true) {
     var fuel = parseInt(inputs[4]); // the quantity of remaining fuel in liters.
     var rotate = parseInt(inputs[5]); // the rotation angle in degrees (-90 to 90).
     var power = parseInt(inputs[6]); // the thrust power (0 to 4).
+    
+    if (!initialised) {
+        initialiseCourse(X, Y, hSpeed, vSpeed, fuel, rotate, power);
+    }
 
     // Write an action using print()
     // To debug: printErr('Debug messages...');
     printErr('time = ' + time);
     
-    if (!initialised) {
-        initialiseCourse(X, Y, hSpeed, vSpeed, fuel, rotate, power);
-    }
-    
-    let aboveFlat = X >= flatStart.x && X <= flatEnd.x;
+    let aboveFlat = X >= landingSite.start.x && X <= landingSite.end.x;
     let tooFastH = Math.abs(hSpeed) > 20;
     let tooFastV = Math.abs(vSpeed) > 40;
     let rotateNew, powerNew;
     
-    let hDistRemaining = flatCentre.x - X;
+    let hDistRemaining = landingSite.centre.x - X;
     let hDistTravelled = hDistTotal - hDistRemaining;
     
     printErr('hDistTotal = ' + hDistTotal);
     printErr('hDistTravelled = ' + hDistTravelled);
     printErr('hDistRemaining = ' + hDistRemaining);
+    printErr('---------------');
     
     /*
     * 4th strategy
