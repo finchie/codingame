@@ -152,9 +152,9 @@ function isAbove(landingSite, position) {
 }
 
 function calcAccelerationForVelocityAndDistance(finalVelocity, initialVelocity, distance) {
-    printErr('finalVelocity = ' + finalVelocity);
-    printErr('initialVelocity = ' + initialVelocity);
-    printErr('distance = ' + distance);
+    // printErr('finalVelocity = ' + finalVelocity);
+    // printErr('initialVelocity = ' + initialVelocity);
+    // printErr('distance = ' + distance);
     return Math.abs(Math.pow(finalVelocity, 2) - Math.pow(initialVelocity, 2)) / (2 * distance);
 }
 
@@ -185,7 +185,13 @@ const telemetrySeries = [];
 
 let time = 0;
 
-const K = (4 / 6000);
+const Kd = (4 / 6000) * 1.0;
+const Ks = 1;
+const ADDITIONAL_SPEED_FACTOR = 0.005;
+const ADDITIONAL_SPEED_BUFFER = 200;
+const VERTICAL_SPEED_TOLERANCE = 2;
+const HORIZONTAL_SPEED_TOLERANCE = 2;
+const NUM_SECONDS_BEFORE_TOUCHDOWN = 4;
 
 // game loop
 while (true) {
@@ -195,26 +201,34 @@ while (true) {
     // save telemetry
     telemetrySeries.push(telemetry);
 
-    const eX = telemetry.position.x - terrain.landingSite.centre.x;
+    const eX = terrain.landingSite.centre.x - telemetry.position.x;
     printErr('eX = ' + eX);
-    const desiredHorizontalAcceleration = K * eX;
+    printErr('hSpeed = ' + telemetry.hSpeed);
+    let distanceFactor = Kd * eX;
+    let speedFactor = Math.abs(telemetry.hSpeed) > MAX_HORIZONTAL_SPEED + ((eX - ADDITIONAL_SPEED_BUFFER) * ADDITIONAL_SPEED_FACTOR) - HORIZONTAL_SPEED_TOLERANCE ? telemetry.hSpeed * Ks : 0;
+    const desiredHorizontalAcceleration = -1 * ( distanceFactor - speedFactor );
+    printErr('distanceFactor = ' + distanceFactor);
+    printErr('speedFactor = ' + speedFactor);
     printErr('desiredHorizontalAcceleration = ' + desiredHorizontalAcceleration);
 
     const targetCoordinateH = findClosestCoordinate(desiredHorizontalAcceleration, accelerations.horizontal);
-    printErr('targetCoordinateH = ' + targetCoordinateH);
 
     const eVS = telemetry.vSpeed - MIN_VERTICAL_SPEED;
     const desiredVerticalAcceleration = calcAccelerationForVelocityAndDistance(0, telemetry.vSpeed, telemetry.position.y - terrain.landingSite.centre.y) + 3.711;
+    printErr('vSpeed = ' + telemetry.vSpeed);
     printErr('desiredVerticalAcceleration = ' + desiredVerticalAcceleration);
     const targetCoordinateV = findClosestCoordinate(desiredVerticalAcceleration, accelerations.vertical);
-    printErr('targetCoordinateV = ' + targetCoordinateV);
 
-    const targetCoordinate = averageCoordinates(targetCoordinateH, targetCoordinateV);
+    let targetCoordinate;
+    if (telemetry.vSpeed < MIN_VERTICAL_SPEED + VERTICAL_SPEED_TOLERANCE) {
+        targetCoordinate = targetCoordinateV;
+    } else {
+        targetCoordinate = targetCoordinateH;
+    }
 
-    // let targetCoordinate;
-    if (isAbove(terrain.landingSite, telemetry.position)) {
-        // targetCoordinate = targetCoordinateV;
-        // targetCoordinate.angle = 0;
+    // don't rotate just above ground
+    if (telemetry.position.y - terrain.landingSite.centre.y <= Math.abs(telemetry.vSpeed) * NUM_SECONDS_BEFORE_TOUCHDOWN) {
+        targetCoordinate.angle = 0;
     } else {
         // targetCoordinate = targetCoordinateH;
     }
