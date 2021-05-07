@@ -78,7 +78,10 @@ while (true) {
             myTrees.push(tree);
         }
     }
-    console.error('myTrees:');
+    console.error('myTrees unsorted:');
+    console.error(myTrees);
+    sortTreesBySize(myTrees);
+    console.error('myTrees sorted:');
     console.error(myTrees);
 
 
@@ -97,4 +100,8 @@ while (true) {
     } else {
         console.log('COMPLETE ' + myTrees[0].cellIndex);
     }
+}
+
+function sortTreesBySize(trees: Tree[]): void {
+    trees.sort((a, b) => b.size - a.size);
 }
