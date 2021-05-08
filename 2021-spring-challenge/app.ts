@@ -46,6 +46,11 @@ class Tree {
 
 const forest: Forest = new Forest();
 
+
+const GROW_SIZE_1_BASE_COST = 3;
+const GROW_SIZE_2_BASE_COST = 7;
+const COMPLETE_SIZE_3_COST = 4;
+
 /**
  * Auto-generated code below aims at helping you parse
  * the standard input according to the problem statement.
@@ -80,7 +85,8 @@ while (true) {
     }
     console.error('myTrees unsorted:');
     console.error(myTrees);
-    sortTreesBySize(myTrees);
+
+    sortTreesBySizeAndRichness(myTrees);
     console.error('myTrees sorted:');
     console.error(myTrees);
 
@@ -94,14 +100,41 @@ while (true) {
     // To debug: console.error('Debug messages...');
 
 
+    const nonDormantTrees: Tree[] = myTrees.filter(t => {
+        return !t.isDormant;
+    });
+    console.error('nonDormantTrees:');
+    console.error(nonDormantTrees);
+    console.error('sun: ' + sun);
+
     // GROW cellIdx | SEED sourceIdx targetIdx | COMPLETE cellIdx | WAIT <message>
-    if (myTrees.length == 0) {
+    if (nonDormantTrees.length === 0) {
         console.log('WAIT');
+    } else if (nonDormantTrees[0].size === 3 && COMPLETE_SIZE_3_COST <= sun) {
+        console.log('COMPLETE ' + nonDormantTrees[0].cellIndex);
     } else {
-        console.log('COMPLETE ' + myTrees[0].cellIndex);
+        // grow any tree that we have enough sun power for
+        const growableTrees: Tree[] = nonDormantTrees.filter(t => {
+            return growCost(t.size, nonDormantTrees) <= sun;
+        });
+        if (growableTrees.length > 0) {
+            console.log('GROW ' + growableTrees[0].cellIndex);
+        } else {
+            console.log('WAIT');
+        }
     }
 }
 
-function sortTreesBySize(trees: Tree[]): void {
-    trees.sort((a, b) => b.size - a.size);
+function sortTreesBySizeAndRichness(trees: Tree[]): void {
+    trees.sort((a, b) => (10 * b.size + forest.cells[b.cellIndex].richness)
+                        - (10 * a.size + forest.cells[a.cellIndex].richness));
+}
+
+function growCost(size: number, ownedTrees: Tree[]): number {
+    const numberSimilarSizedTreesOwned = ownedTrees.filter(t => t.size === size + 1).length;
+    if (size < 1 || size > 2) {
+        return Infinity;
+    } else {
+        return ((size === 1) ? GROW_SIZE_1_BASE_COST : GROW_SIZE_2_BASE_COST) + numberSimilarSizedTreesOwned;
+    }
 }
