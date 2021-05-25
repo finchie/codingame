@@ -1,13 +1,10 @@
 package dungeons_and_maps;
 
-import static java.util.Comparator.comparingInt;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
-import java.util.stream.IntStream;
 
 class Solution {
 
@@ -16,8 +13,6 @@ class Solution {
     static final char LEFT = '<';
     static final char RIGHT = '>';
     static final char TREASURE = 'T';
-
-    static final int INVALID_PATH_LENGTH = Integer.MAX_VALUE;
 
     public static void main(String args[]) {
 
@@ -46,19 +41,21 @@ class Solution {
             }
         }
 
-        // find path lengths
-        List<Integer> paths = new ArrayList<Integer>();
-        for (char[][] map: maps) {
-            paths.add(measurePath(map, start));
+        // find shortest path
+        int shortestPath = Integer.MAX_VALUE;
+        int mapWithShortestPath = -1;
+        for (int index = 0; index < maps.size(); index++) {
+            int length = measurePath(maps.get(index), start);
+            if (length < shortestPath) {
+                shortestPath = length;
+                mapWithShortestPath = index;
+            }
         }
 
-        // find shortest path
-        int minIndex = IntStream.range(0, paths.size()).boxed().min(comparingInt(paths::get)).get();
-
-        if (paths.get(minIndex) == INVALID_PATH_LENGTH) {
+        if (shortestPath == Integer.MAX_VALUE) {
             System.out.println("TRAP");
         } else {
-            System.out.println(minIndex);
+            System.out.println(mapWithShortestPath);
         }
     }
 
@@ -72,47 +69,43 @@ class Solution {
                 switch (map[row][col]) {
                     case UP:
                         if (row == 0) {
-                            pathLength = INVALID_PATH_LENGTH;
+                            return Integer.MAX_VALUE; // out of bounds
                         } else {
                             row--;
-                            pathLength++;
                         }
                         break;
                     case DOWN:
                         if (row == map.length - 1) {
-                            pathLength = INVALID_PATH_LENGTH;
+                            return Integer.MAX_VALUE; // out of bounds
                         } else {
                             row++;
-                            pathLength++;
                         }
                         break;
                     case LEFT:
                         if (col == 0) {
-                            pathLength = INVALID_PATH_LENGTH;
+                            return Integer.MAX_VALUE; // out of bounds
                         } else {
                             col--;
-                            pathLength++;
                         }
                         break;
                     case RIGHT:
                         if (col == map[row].length - 1) {
-                            pathLength = INVALID_PATH_LENGTH;
+                            return Integer.MAX_VALUE; // out of bounds
                         } else {
                             col++;
-                            pathLength++;
                         }
                         break;
+                    case TREASURE:
+                        break;
                     default:
-                        pathLength = INVALID_PATH_LENGTH;
+                        return Integer.MAX_VALUE; // no path
                 }
             } else {
-                pathLength = INVALID_PATH_LENGTH; // infinite loop
+                return Integer.MAX_VALUE; // infinite loop
             }
-        } while (map[row][col] != TREASURE && pathLength != INVALID_PATH_LENGTH);
-
-        if (map[row][col] == TREASURE) {
             pathLength++;
-        }
+        } while (map[row][col] != TREASURE);
+
         return pathLength;
     }
 }
