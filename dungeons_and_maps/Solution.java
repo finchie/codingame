@@ -20,30 +20,36 @@ class Solution {
     static final int INVALID_PATH_LENGTH = Integer.MAX_VALUE;
 
     public static void main(String args[]) {
-        Scanner in = new Scanner(System.in);
-        int w = in.nextInt();
-        int h = in.nextInt();
-        int startRow = in.nextInt();
-        int startCol = in.nextInt();
-        int n = in.nextInt();
-        if (in.hasNextLine()) {
-            in.nextLine();
-        }
 
         List<char[][]> maps = new ArrayList<char[][]>();
-        for (int i = 0; i < n; i++) {
-            char[][] map = new char[h][w];
-            for (int j = 0; j < h; j++) {
-                String mapRow = in.nextLine();
-                map[j] = mapRow.toCharArray();
+        Position start;
+
+        try (Scanner in = new Scanner(System.in)) {
+            int w = in.nextInt();
+            int h = in.nextInt();
+            int startRow = in.nextInt();
+            int startCol = in.nextInt();
+            int n = in.nextInt();
+            if (in.hasNextLine()) {
+                in.nextLine();
             }
-            maps.add(map);
+
+            start = new Position(startRow, startCol);
+
+            for (int i = 0; i < n; i++) {
+                char[][] map = new char[h][w];
+                for (int j = 0; j < h; j++) {
+                    String mapRow = in.nextLine();
+                    map[j] = mapRow.toCharArray();
+                }
+                maps.add(map);
+            }
         }
 
         // find path lengths
         List<Integer> paths = new ArrayList<Integer>();
         for (char[][] map: maps) {
-            paths.add(measurePath(map, startRow, startCol));
+            paths.add(measurePath(map, start));
         }
 
         // find shortest path
@@ -56,12 +62,13 @@ class Solution {
         }
     }
 
-    private static int measurePath(char[][] map, int startRow, int startCol) {
+    // measure the path length from the starting position to the treasure
+    private static int measurePath(char[][] map, Position start) {
 
-        int pathLength = 0, row = startRow, col = startCol;
-        Set<Position> visitedPositions = new HashSet<Position>();
+        int pathLength = 0, row = start.row, col = start.col;
+        Set<Position> visited = new HashSet<Position>();
         do {
-            if (visitedPositions.add(new Position(row, col))) {
+            if (visited.add(new Position(row, col))) {
                 switch (map[row][col]) {
                     case UP:
                         if (row == 0) {
@@ -110,6 +117,7 @@ class Solution {
     }
 }
 
+// represents a position on a map
 class Position {
     final int row;
     final int col;
@@ -125,6 +133,7 @@ class Position {
         result = prime * result + row;
         return result;
     }
+    // required for indentity when added to Set
     @Override
     public boolean equals(Object obj) {
         if (this == obj)
