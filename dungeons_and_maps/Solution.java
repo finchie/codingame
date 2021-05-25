@@ -39,21 +39,15 @@ class Solution {
             }
             maps.add(map);
         }
-        // System.err.println("start: " + startRow + " " + startCol);
-        // displayMaps(maps);
 
         // find path lengths
         List<Integer> paths = new ArrayList<Integer>();
         for (char[][] map: maps) {
             paths.add(measurePath(map, startRow, startCol));
         }
-        // System.err.println("paths: " + paths);
 
         // find shortest path
         int minIndex = IntStream.range(0, paths.size()).boxed().min(comparingInt(paths::get)).get();
-
-        // Write an answer using System.out.println()
-        // To debug: System.err.println("Debug messages...");
 
         if (paths.get(minIndex) == INVALID_PATH_LENGTH) {
             System.out.println("TRAP");
@@ -61,15 +55,6 @@ class Solution {
             System.out.println(minIndex);
         }
     }
-
-    // private static void displayMaps(List<char[][]> maps) {
-    //     for (char[][] map : maps) {
-    //         for (int i = 0; i < map.length; i++) {
-    //             System.err.println(map[i]);
-    //         }
-    //         System.err.println();
-    //     }
-    // }
 
     private static int measurePath(char[][] map, int startRow, int startCol) {
 
