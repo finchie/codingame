@@ -17,16 +17,10 @@ class Solution {
         int countY = in.nextInt();
 
         List<Integer> xMeasurements = getMeasurements(in, countX, w);
-        // System.err.println("xMeasurements " + xMeasurements);
-
         List<Integer> yMeasurements = getMeasurements(in, countY, h);
-        // System.err.println("yMeasurements " + yMeasurements);
 
         List<Integer> xSides = getSides(xMeasurements);
-        // System.err.println("xSides " + xSides);
-
         List<Integer> ySides = getSides(yMeasurements);
-        // System.err.println("ySides " + ySides);
 
         // count squares
         int count = 0;
@@ -37,9 +31,6 @@ class Solution {
                 }
             }
         }
-
-        // Write an answer using System.out.println()
-        // To debug: System.err.println("Debug messages...");
 
         System.out.println(count);
     }
