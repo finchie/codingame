@@ -1,0 +1,27 @@
+{
+  "name": "codingame",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "My attempts to solve various Codingame puzzles",
+  "keywords": [
+    "codingame"
+  ],
+  "author": "finchie",
+  "license": "ISC",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/finchie/codingame.git"
+  },
+  "bugs": {
+    "url": "https://github.com/finchie/codingame/issues"
+  },
+  "homepage": "https://github.com/finchie/codingame#readme",
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^6.0.3"
+  }
+}
