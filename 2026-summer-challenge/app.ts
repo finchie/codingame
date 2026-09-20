@@ -50,11 +50,15 @@ class Game {
     myId: number;
     grid: Grid;
     towns: Town[];
+    myScore: number;
+    foeScore: number;
 
     constructor() {
         this.myId = -1;
         this.grid = null as unknown as Grid; // Will be initialized in init()
         this.towns = [];
+        this.myScore = 0;
+        this.foeScore = 0;
     }
 
     init() {
@@ -92,9 +96,9 @@ class Game {
     }
 
     readGameState() {
-        const myScore: number = parseInt(readline());
-        const foeScore: number = parseInt(readline());
-        
+        this.myScore = parseInt(readline());
+        this.foeScore = parseInt(readline());
+
         for (let i = 0; i < this.grid.height; i++) {
             for (let j = 0; j < this.grid.width; j++) {
                 var inputs: string[] = readline().split(' ');
