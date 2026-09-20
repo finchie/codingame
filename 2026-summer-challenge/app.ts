@@ -54,28 +54,16 @@ class Game {
     foeScore: number;
 
     constructor() {
-        this.myId = -1;
-        this.grid = null as unknown as Grid; // Will be initialized in init()
-        this.towns = [];
-        this.myScore = 0;
-        this.foeScore = 0;
-    }
-
-    init() {
-
-        /**
-         * Connect towns with your train tracks and disrupt the opponent's.
-         **/
-
         this.myId = parseInt(readline()); // 0 or 1
 
         const width: number = parseInt(readline()); // map size
         const height: number = parseInt(readline());
         this.grid = new Grid(width, height);
+        this.towns = [];
 
-        for (let row = 0; row < height; row++) {
+        for (let row = 0; row < this.grid.height; row++) {
             
-            for (let col = 0; col < width; col++) {
+            for (let col = 0; col < this.grid.width; col++) {
                 var inputs: string[] = readline().split(' ');
                 const regionId: number = parseInt(inputs[0]!);
                 const type: number = parseInt(inputs[1]!); // 0 (PLAINS), 1 (RIVER), 2 (MOUNTAIN), 3 (POI)
@@ -92,6 +80,9 @@ class Game {
             const town = new Town(townId, townX, townY, desiredConnections.split(',').map(Number));
             this.towns.push(town);
         }
+        
+        this.myScore = 0;
+        this.foeScore = 0;
         
     }
 
@@ -124,9 +115,12 @@ class Game {
         console.log('WAIT');
     }
 }
-
+    
+/**
+ * Connect towns with your train tracks and disrupt the opponent's.
+ **/
 const game = new Game();
-game.init();
+
 // game loop
 while (true) {
     game.readGameState();
