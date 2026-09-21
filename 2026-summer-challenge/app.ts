@@ -46,10 +46,22 @@ class Town {
     }
 }
 
+class Connection {
+    townA: Town;
+    townB: Town;
+    constructor(townA: Town, townB: Town) {
+        this.townA = townA;
+        this.townB = townB;
+    }
+    simpleDistance(): number {
+        return Math.abs(this.townA.x - this.townB.x) + Math.abs(this.townA.y - this.townB.y);
+    }
+}
+
 class Game {
     myId: number;
     grid: Grid;
-    towns: Town[];
+    towns: Map<number, Town>;
     myScore: number;
     foeScore: number;
 
@@ -59,7 +71,7 @@ class Game {
         const width: number = parseInt(readline()); // map size
         const height: number = parseInt(readline());
         this.grid = new Grid(width, height);
-        this.towns = [];
+        this.towns = new Map<number, Town>();
 
         for (let row = 0; row < this.grid.height; row++) {
             
@@ -78,9 +90,9 @@ class Game {
             const townY: number = parseInt(inputs[2]!);
             const desiredConnections: string = inputs[3]!; // comma-separated town ids e.g. 0,1,2,3
             const town = new Town(townId, townX, townY, desiredConnections.split(',').map(Number));
-            this.towns.push(town);
+            this.towns.set(townId, town);
         }
-        
+
         this.myScore = 0;
         this.foeScore = 0;
         
@@ -104,15 +116,34 @@ class Game {
 
     playGameRound() {
         // Implement your game logic here to decide on actions to take each round.
+        const connections: Connection[] = [];
+        for(const town of this.towns.values()) {
+            for(const desiredTownId of town.desiredConnections) {
+                const desiredTown = this.towns.get(desiredTownId);
+                if(desiredTown) {
+                    const connection = new Connection(town, desiredTown);
+                    connections.push(connection);
+                    // console.error(`Connection from Town ${town.townId} to Town ${desiredTown.townId} has simple distance: ${connection.simpleDistance()}`);
+                }
+            }
+        }
+        connections.sort((a, b) => a.simpleDistance() - b.simpleDistance());
+        const shortestConnection = connections[0];
+        if(shortestConnection) {
+            console.error(`Shortest connection is from Town ${shortestConnection.townA.townId} to Town ${shortestConnection.townB.townId} with distance: ${shortestConnection.simpleDistance()}`);
 
-        // Write an action using console.log()
-        // To debug: console.error('Debug messages...');
-        console.error('Grid:');
-        console.error(this.grid.toString());
-        console.error(this.towns.map(town => `Town ${town.townId}: (${town.x}, ${town.y}), Desired Connections: ${town.desiredConnections.join(',')}`).join('\n'));
+            // Write an action using console.log()
+            // To debug: console.error('Debug messages...');
+            console.error('Grid:');
+            console.error(this.grid.toString());
+            console.error(Array.from(this.towns.values()).map(town => `Town ${town.townId}: (${town.x}, ${town.y}), Desired Connections: ${town.desiredConnections.join(',')}`).join('\n'));
 
-        // AUTOPLACE x1 y1 x2 y2 | PLACE_TRACKS x y | DISRUPT regionId | MESSAGE text
-        console.log('WAIT');
+            // AUTOPLACE x1 y1 x2 y2 | PLACE_TRACKS x y | DISRUPT regionId | MESSAGE text
+            console.log(`AUTOPLACE ${shortestConnection.townA.x} ${shortestConnection.townA.y} ${shortestConnection.townB.x} ${shortestConnection.townB.y}`);
+        } else {
+            console.error('No connections found.');
+            console.log('WAIT'); // If no connections are found, we can choose to wait or take another action.
+        }
     }
 }
     
